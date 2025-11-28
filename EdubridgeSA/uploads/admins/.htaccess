@@ -1,0 +1,8 @@
+Options -Indexes -ExecCGI
+<FilesMatch "\.(php|phtml|php3|php4|php5|phps)$">
+  Order allow,deny
+  Deny from all
+</FilesMatch>
+# Override max upload size to 2MB for this directory
+php_value upload_max_filesize 2M
+php_value post_max_size 3M

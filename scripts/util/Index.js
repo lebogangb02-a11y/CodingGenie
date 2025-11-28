@@ -1,5 +1,7 @@
 const express = require("express");
 const app = express();
+// Serve EduBridgeSA static files
+app.use('/edubridge', express.static('edubridge'));
 
 app.get("/", (req, res) => {
   res.send("CodingGenie server is running!");

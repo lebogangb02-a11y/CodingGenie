@@ -1,0 +1,10 @@
+/* Admin Profile enhancements */
+.card-shadow { box-shadow: 0 6px 18px rgba(0,0,0,0.06); }
+.rounded-circle { object-fit: cover; }
+.form-text { font-size: 0.85rem; }
+.list-group-item .badge { font-weight: 500; }
+
+/* Dark mode tweaks (using body.dark-mode or server-side class) */
+body.dark-mode .card { background-color: #1f2937; color: #e5e7eb; }
+body.dark-mode .form-control, body.dark-mode .form-select { background-color: #111827; color: #e5e7eb; border-color: #374151; }
+body.dark-mode .btn-outline-secondary { color: #e5e7eb; border-color: #6b7280; }

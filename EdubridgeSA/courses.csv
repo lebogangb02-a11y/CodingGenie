@@ -1,0 +1,249 @@
+category,course
+Education,BEd Foundation Phase
+Education,BEd Intermediate Phase
+Education,BEd Senior Phase
+Education,BEd Further Education and Training
+Education,Postgraduate Certificate in Education (PGCE)
+Education,Bachelor of Education (Honours)
+Education,MEd Educational Leadership
+Education,PhD Education
+Business,BCom Accounting
+Business,BCom Business Management
+Business,BCom Economics
+Business,BCom Finance
+Business,BCom Investment Management
+Business,Bachelor of Business Administration (BBA)
+Business,BCom Human Resources Management
+Business,BCom Marketing Management
+Business,BCom Supply Chain Management
+Business,BCom Entrepreneurship
+Business,BCom International Business
+Business,BCom Financial Planning
+Business,BCom Taxation
+Business,BCom Internal Auditing
+IT & Computing,BSc Computer Science
+IT & Computing,BSc Information Technology
+IT & Computing,BSc Data Science
+IT & Computing,BSc Artificial Intelligence
+IT & Computing,BSc Software Engineering
+IT & Computing,BSc Cyber Security
+IT & Computing,BSc Computer Engineering
+IT & Computing,Diploma in IT
+IT & Computing,Diploma in Software Development
+IT & Computing,Diploma in Network Management
+IT & Computing,Diploma in Information Systems
+Health & Sciences,MBChB (Medicine)
+Health & Sciences,Bachelor of Nursing
+Health & Sciences,Bachelor of Pharmacy
+Health & Sciences,BSc Physiotherapy
+Health & Sciences,BSc Occupational Therapy
+Health & Sciences,BSc Dietetics
+Health & Sciences,BSc Biomedical Sciences
+Health & Sciences,BSc Biotechnology
+Health & Sciences,BSc Genetics
+Health & Sciences,BSc Microbiology
+Health & Sciences,BSc Chemistry
+Health & Sciences,BSc Physics
+Health & Sciences,BSc Mathematics
+Health & Sciences,BSc Statistics
+Health & Sciences,BSc Environmental Science
+Health & Sciences,BSc Geology
+Health & Sciences,BSc Agriculture
+Health & Sciences,BVSc (Veterinary Science)
+Health & Sciences,Bachelor of Dental Surgery (BDS)
+Engineering,BEng Civil Engineering
+Engineering,BEng Electrical Engineering
+Engineering,BEng Mechanical Engineering
+Engineering,BEng Chemical Engineering
+Engineering,BEng Industrial Engineering
+Engineering,BEng Mechatronics Engineering
+Engineering,BEng Aeronautical Engineering
+Engineering,BEng Mining Engineering
+Engineering,BEng Metallurgical Engineering
+Engineering,BEng Computer Engineering
+Engineering,BEng Environmental Engineering
+Engineering,National Diploma: Engineering
+Humanities,BA Psychology
+Humanities,BA Social Work
+Humanities,BA Sociology
+Humanities,BA Anthropology
+Humanities,BA Political Science
+Humanities,BA International Relations
+Humanities,BA Development Studies
+Humanities,BA Public Management
+Humanities,BA Criminology
+Humanities,BA Languages
+Humanities,BA History
+Humanities,BA Philosophy
+Humanities,LLB (Law)
+Humanities,BA Media Studies
+Humanities,BA Journalism
+Humanities,BA Communication Science
+Humanities,BA Tourism Management
+Humanities,BA Heritage Studies
+Humanities,Bachelor of Library and Information Science
+Art & Design,Bachelor of Fine Arts
+Art & Design,Bachelor of Fashion Design
+Art & Design,Bachelor of Graphic Design
+Art & Design,Bachelor of Architecture
+Art & Design,Bachelor of Interior Design
+Art & Design,Bachelor of Industrial Design
+Art & Design,Bachelor of Drama
+Art & Design,Bachelor of Music
+Art & Design,Bachelor of Film and Television
+Art & Design,Bachelor of Photography
+Art & Design,Bachelor of Dance
+Built Environment,BSc Quantity Surveying
+Built Environment,BSc Construction Management
+Built Environment,BSc Urban and Regional Planning
+Built Environment,BSc Real Estate
+Built Environment,BSc Town and Regional Planning
+Agriculture,BSc Agriculture
+Agriculture,BSc Agricultural Economics
+Agriculture,BSc Animal Science
+Agriculture,BSc Plant Pathology
+Agriculture,BSc Food Science
+Agriculture,BSc Viticulture and Oenology
+Theology,Bachelor of Theology
+Theology,Bachelor of Religion
+Theology,Bachelor of Biblical Studies
+Aviation,Bachelor of Aviation
+Aviation,BCom Logistics
+Maritime,Bachelor of Maritime Studies
+Hospitality,BCom Hospitality Management
+Hospitality,Bachelor of Culinary Arts
+Education,Master of Education (MEd)
+Business,Master of Business Administration (MBA)
+Business,Master of Commerce (MCom)
+Health & Sciences,Master of Science (MSc)
+Engineering,Master of Engineering (MEng)
+Humanities,Master of Arts (MA)
+Health & Sciences,Master of Public Health (MPH)
+Humanities,Master of Laws (LLM)
+Humanities,Doctor of Philosophy (PhD)
+Education,Doctor of Education (EdD)
+Business,Doctor of Business Administration (DBA)
+Short Course,Digital Marketing Fundamentals
+Short Course,Project Management Essentials
+Short Course,Basic Computer Literacy
+Short Course,Entrepreneurship Basics
+Short Course,Financial Literacy
+Short Course,Social Media Management
+Short Course,Web Design Basics
+Short Course,Customer Service Excellence
+Short Course,Data Analysis with Excel
+Short Course,Graphic Design Fundamentals
+Short Course,Cybersecurity Awareness
+Short Course,Event Planning Basics
+Short Course,Basic Accounting Principles
+Short Course,Human Resources Fundamentals
+Short Course,Public Speaking Skills
+Diploma,Diploma in Information Technology
+Diploma,Diploma in Business Management
+Diploma,Diploma in Marketing
+Diploma,Diploma in Human Resources Management
+Diploma,Diploma in Accounting
+Diploma,Diploma in Hospitality Management
+Diploma,Diploma in Tourism Management
+Diploma,Diploma in Public Relations
+Diploma,Diploma in Journalism
+Diploma,Diploma in Graphic Design
+Diploma,Diploma in Interior Design
+Diploma,Diploma in Electrical Engineering
+Diploma,Diploma in Mechanical Engineering
+Diploma,Diploma in Civil Engineering
+Diploma,Diploma in Sports Management
+Diploma,Diploma in Early Childhood Development
+Diploma,Diploma in Somatology
+Diploma,Diploma in Safety Management
+Diploma,Diploma in Logistics and Supply Chain
+Advanced Diploma,Advanced Diploma in IT Management
+Advanced Diploma,Advanced Diploma in Business Administration
+Advanced Diploma,Advanced Diploma in Marketing Management
+Advanced Diploma,Advanced Diploma in Financial Management
+Advanced Diploma,Advanced Diploma in Human Resources Management
+Advanced Diploma,Advanced Diploma in Project Management
+Advanced Diploma,Advanced Diploma in Supply Chain Management
+Advanced Diploma,Advanced Diploma in Hospitality Management
+Advanced Diploma,Advanced Diploma in Tourism Management
+Advanced Diploma,Advanced Diploma in Public Management
+Advanced Diploma,Advanced Diploma in Engineering Management
+Advanced Diploma,Advanced Diploma in Educational Management
+Advanced Diploma,Advanced Diploma in Environmental Management
+Advanced Diploma,Advanced Diploma in Safety Management
+Higher Certificate,Higher Certificate in Business Principles
+Higher Certificate,Higher Certificate in Information Technology
+Higher Certificate,Higher Certificate in Marketing
+Higher Certificate,Higher Certificate in Office Administration
+Higher Certificate,Higher Certificate in Hospitality
+Higher Certificate,Higher Certificate in Tourism
+Higher Certificate,Higher Certificate in Early Childhood Care
+Higher Certificate,Higher Certificate in Banking
+Higher Certificate,Higher Certificate in Insurance
+Higher Certificate,Higher Certificate in Real Estate
+Higher Certificate,Higher Certificate in Sports Coaching
+Higher Certificate,Higher Certificate in Fitness
+Higher Certificate,Higher Certificate in Beauty Therapy
+Higher Certificate,Higher Certificate in Events Management
+Higher Certificate,Higher Certificate in Supply Chain Principles
+Higher Certificate,Higher Certificate in Contact Centre Management
+Higher Certificate,Higher Certificate in Small Business Management
+Higher Certificate,Higher Certificate in Digital Media
+Higher Certificate,Higher Certificate in Community Development
+Certificate,Certificate in Computer Skills
+Certificate,Certificate in Bookkeeping
+Certificate,Certificate in Customer Service
+Certificate,Certificate in Retail Management
+Certificate,Certificate in Wholesale Management
+Certificate,Certificate in Supervision
+Certificate,Certificate in Office Management
+Certificate,Certificate in Business Communication
+Certificate,Certificate in Entrepreneurship
+Certificate,Certificate in Project Management
+Certificate,Certificate in Human Resources Practice
+Certificate,Certificate in Marketing Principles
+Certificate,Certificate in Sales Techniques
+Certificate,Certificate in Digital Marketing
+Certificate,Certificate in Social Media Marketing
+Certificate,Certificate in Web Development
+Certificate,Certificate in Network Support
+Certificate,Certificate in PC Maintenance
+Certificate,Certificate in Graphic Design
+Certificate,Certificate in Photography
+Certificate,Certificate in Video Editing
+Certificate,Certificate in Event Coordination
+Certificate,Certificate in Tour Guiding
+Certificate,Certificate in Food and Beverage Service
+Certificate,Certificate in Accommodation Services
+Certificate,Certificate in Child Care
+Certificate,Certificate in Home-Based Care
+Certificate,Certificate in First Aid
+Certificate,Certificate in Fitness Instruction
+Certificate,Certificate in Beauty Care
+Certificate,Certificate in Nail Technology
+Certificate,Certificate in Occupational Health and Safety
+Certificate,Certificate in Fire Fighting
+Certificate,Certificate in Security Services
+Certificate,Certificate in Driving
+Certificate,Certificate in Fleet Management
+Certificate,Certificate in Warehouse Operations
+Certificate,Certificate in Supply Chain Operations
+Certificate,Certificate in Export and Import Procedures
+Certificate,Certificate in Freight Handling
+Postgraduate Diploma,Postgraduate Diploma in Management
+Postgraduate Diploma,Postgraduate Diploma in Business Administration
+Postgraduate Diploma,Postgraduate Diploma in Marketing
+Postgraduate Diploma,Postgraduate Diploma in Finance
+Postgraduate Diploma,Postgraduate Diploma in Human Resources
+Postgraduate Diploma,Postgraduate Diploma in Project Management
+Postgraduate Diploma,Postgraduate Diploma in Information Technology
+Postgraduate Diploma,Postgraduate Diploma in Data Science
+Postgraduate Diploma,Postgraduate Diploma in Cyber Security
+Postgraduate Diploma,Postgraduate Diploma in Engineering
+Postgraduate Diploma,Postgraduate Diploma in Education
+Postgraduate Diploma,Postgraduate Diploma in Public Health
+Postgraduate Diploma,Postgraduate Diploma in Environmental Management
+Postgraduate Diploma,Postgraduate Diploma in Tourism Management
+Postgraduate Diploma,Postgraduate Diploma in Hospitality Management
+Postgraduate Diploma,Postgraduate Diploma in Law
+Postgraduate Diploma,Postgraduate Diploma in Sports Management

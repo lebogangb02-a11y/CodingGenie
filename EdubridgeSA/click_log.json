@@ -1,0 +1,58 @@
+[
+    {
+        "type": "verification_click",
+        "token": "1f05f5e028d606ca30e1742c4763aaceeb370b274c6acf9bdc2829b73512da26",
+        "ts": "2025-11-04T21:42:15+00:00",
+        "ip": "105.245.103.48",
+        "ua": "Mozilla\/5.0 (Linux; Android 10; K) AppleWebKit\/537.36 (KHTML, like Gecko) SamsungBrowser\/28.0 Chrome\/130.0.0.0 Mobile Safari\/537.36"
+    },
+    {
+        "type": "verification_click",
+        "token": "1f05f5e028d606ca30e1742c4763aaceeb370b274c6acf9bdc2829b73512da26",
+        "ts": "2025-11-04T21:44:44+00:00",
+        "ip": "196.23.168.133",
+        "ua": "Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/137.0.0.0 Safari\/537.36"
+    },
+    {
+        "type": "verification_click",
+        "token": "02853ab804cf921c269d6d1f5aa906f53deca4035cfb1dcae786e7dcf3301bc9",
+        "ts": "2025-11-04T21:54:55+00:00",
+        "ip": "105.245.103.48",
+        "ua": "Mozilla\/5.0 (Linux; Android 10; K) AppleWebKit\/537.36 (KHTML, like Gecko) SamsungBrowser\/28.0 Chrome\/130.0.0.0 Mobile Safari\/537.36"
+    },
+    {
+        "type": "verification_click",
+        "token": "02853ab804cf921c269d6d1f5aa906f53deca4035cfb1dcae786e7dcf3301bc9",
+        "ts": "2025-11-04T21:55:29+00:00",
+        "ip": "105.245.103.48",
+        "ua": "Mozilla\/5.0 (X11; Linux x86_64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/141.0.0.0 Safari\/537.36"
+    },
+    {
+        "type": "verification_click",
+        "token": "02853ab804cf921c269d6d1f5aa906f53deca4035cfb1dcae786e7dcf3301bc9",
+        "ts": "2025-11-04T22:06:49+00:00",
+        "ip": "105.245.103.48",
+        "ua": "Mozilla\/5.0 (Linux; Android 10; K) AppleWebKit\/537.36 (KHTML, like Gecko) SamsungBrowser\/28.0 Chrome\/130.0.0.0 Mobile Safari\/537.36"
+    },
+    {
+        "type": "verification_click",
+        "token": "02853ab804cf921c269d6d1f5aa906f53deca4035cfb1dcae786e7dcf3301bc9",
+        "ts": "2025-11-04T22:08:10+00:00",
+        "ip": "41.198.150.102",
+        "ua": "Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/141.0.0.0 Safari\/537.36"
+    },
+    {
+        "type": "verification_click",
+        "token": "fb8d47ac27cf3ef80e274e1ad911f00e6e299171aa78d68705f5c31954c0c41e",
+        "ts": "2025-11-04T22:16:55+00:00",
+        "ip": "105.245.103.48",
+        "ua": "Mozilla\/5.0 (Linux; Android 10; K) AppleWebKit\/537.36 (KHTML, like Gecko) SamsungBrowser\/28.0 Chrome\/130.0.0.0 Mobile Safari\/537.36"
+    },
+    {
+        "type": "verification_click",
+        "token": "fb8d47ac27cf3ef80e274e1ad911f00e6e299171aa78d68705f5c31954c0c41e",
+        "ts": "2025-11-05T00:20:58+00:00",
+        "ip": "105.245.103.48",
+        "ua": "Mozilla\/5.0 (Linux; Android 10; K) AppleWebKit\/537.36 (KHTML, like Gecko) SamsungBrowser\/28.0 Chrome\/130.0.0.0 Mobile Safari\/537.36"
+    }
+]

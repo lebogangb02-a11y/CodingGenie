@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /$
+Allow: /about.php
+Allow: /contact.php
+Disallow: /student-dashboard.php
+Disallow: /apply.php
+Disallow: /process_payment.php
+Disallow: /payfast_ipn.php
+Disallow: /admin/
+Sitemap: https://edubridgesa.co.za/sitemap.xml

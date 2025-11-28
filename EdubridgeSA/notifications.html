@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Notifications | EduBridge SA</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root { --primary:#0A3D91; --secondary:#0066FF; --accent:#FBBF24; --gray-50:#f9fafb; --gray-100:#f3f4f6; --gray-200:#e5e7eb; --gray-300:#d1d5db; --gray-400:#9ca3af; --gray-500:#6b7280; --gray-600:#4b5563; --gray-700:#374151; --gray-800:#1f2937; --gray-900:#111827; }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter, Poppins, system-ui,-apple-system,Segoe UI,Roboto,Arial;color:var(--gray-800);background:#fff}
+    .page{min-height:100vh;display:flex;flex-direction:column;opacity:0;transform:translateY(8px);animation:fadeIn .25s ease forwards}
+    @keyframes fadeIn{to{opacity:1;transform:none}}
+    header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--gray-200);position:sticky;top:0;background:#fff;z-index:10}
+    .title{display:flex;align-items:center;gap:10px;font-weight:700}
+    .back{display:inline-flex;align-items:center;gap:8px;color:var(--primary);text-decoration:none}
+    .actions{display:flex;align-items:center;gap:10px}
+    .btn{padding:8px 12px;border-radius:8px;border:1px solid var(--gray-300);background:#fff;color:var(--gray-800);cursor:pointer;transition:all .25s ease}
+    .btn:hover{box-shadow:0 8px 20px rgba(0,102,255,.25);transform:translateY(-2px)}
+    .btn.primary{background:linear-gradient(90deg, var(--secondary), #00C6FF);color:#fff;border-color:transparent;box-shadow:0 10px 20px rgba(0,102,255,.25)}
+    .content{display:grid;grid-template-columns:240px 1fr;gap:16px;padding:16px 20px}
+    .sidebar{border-right:1px solid var(--gray-200)}
+    .tabs{display:flex;flex-direction:column;gap:6px}
+    .tab{display:flex;align-items:center;gap:8px;padding:10px;border-radius:8px;color:var(--gray-700);cursor:pointer;transition:all .25s ease}
+    .tab:hover{background:var(--gray-100);color:var(--primary)}
+    .tab.active{background:var(--gray-100);color:var(--primary);font-weight:600}
+    .panel{display:flex;flex-direction:column;gap:12px}
+    .tools{display:flex;flex-wrap:wrap;gap:8px}
+    .search{flex:1;min-width:240px;padding:8px 12px;border:1px solid var(--gray-300);border-radius:8px}
+    .filter{padding:8px 12px;border:1px solid var(--gray-300);border-radius:8px;background:#fff}
+    .list{border:1px solid var(--gray-200);border-radius:12px;overflow:hidden}
+    .row{display:grid;grid-template-columns:36px 28px 1fr auto;gap:12px;padding:12px 14px;border-bottom:1px solid var(--gray-100);align-items:center;transition:all .25s ease}
+    .row:hover{box-shadow:0 8px 24px rgba(10,61,145,.12);transform:translateY(-2px);background:var(--gray-50)}
+    .row.unread{background:var(--gray-50)}
+    .icon{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;transition:all .25s ease}
+    .icon.deadline{background:#fff7ed;color:#f59e0b}
+    .icon.message{background:#eef2ff;color:#1e3a8a}
+    .icon.document{background:#ecfeff;color:#0891b2}
+    .icon.system{background:#f0fdf4;color:#047857}
+    .title-row{display:flex;gap:8px;align-items:center}
+    .badge{padding:2px 8px;border-radius:999px;font-size:.75rem;border:1px solid rgba(251,191,36,.6);color:#92400e;background:rgba(251,191,36,.12)}
+    .meta{color:var(--gray-500);font-size:.85rem;margin-top:4px}
+    .actions-row{display:flex;flex-wrap:wrap;gap:8px}
+    .link{color:var(--primary);text-decoration:none;cursor:pointer}
+    .empty{padding:30px;text-align:center;color:var(--gray-600)}
+    .settings{margin-top:16px;border-top:1px solid var(--gray-200);padding-top:12px}
+    .setting-item{display:flex;align-items:center;justify-content:space-between;padding:8px 0}
+    .toggle-theme{transition:background .3s ease,color .3s ease}
+    .glow-text{color:#fff;text-shadow:0 0 10px #00c6ff,0 0 20px #0066ff;animation:glow 2s ease-in-out infinite alternate}
+    @keyframes glow{from{filter:brightness(1);text-shadow:0 0 10px #0066ff}to{filter:brightness(1.05);text-shadow:0 0 25px #00c6ff,0 0 50px #00c6ff}}
+    @keyframes float{0%{transform:translateY(0)}50%{transform:translateY(-10px)}100%{transform:translateY(0)}}
+    .logo{animation:float 4s ease-in-out infinite}
+    .dashboard-banner img{border-radius:20px;filter:brightness(.85)}
+    /* Details Modal */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:1000}
+    .modal-card{width:560px;max-width:92vw;background:#fff;border-radius:12px;box-shadow:0 20px 48px rgba(0,0,0,.25);overflow:hidden}
+    .modal-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--gray-200)}
+    .modal-title{font-weight:700;color:var(--gray-800)}
+    .modal-body{padding:16px 18px}
+    .modal-meta{color:var(--gray-500);font-size:.9rem;margin-bottom:10px;display:flex;gap:10px;flex-wrap:wrap}
+    .modal-actions{display:flex;justify-content:flex-end;gap:8px;padding:12px 18px;border-top:1px solid var(--gray-200)}
+    .btn-outline{background:#fff;border:1px solid var(--gray-300);color:var(--gray-800)}
+    .btn-outline:hover{background:#f9fafb}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <a class="back" href="student-dashboard.php"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+      <div class="title"><i class="fas fa-bell"></i> Notifications</div>
+      <div class="actions">
+        <button class="btn" id="bulkRead">Mark selected read</button>
+        <button class="btn" id="bulkUnread">Mark selected unread</button>
+        <button class="btn" id="bulkArchive">Archive selected</button>
+        <button class="btn" id="bulkDelete">Delete selected</button>
+        <button class="btn primary" id="markAll">Mark all as read</button>
+      </div>
+    </header>
+    <div class="content">
+      <aside class="sidebar">
+        <div class="tabs" id="tabs">
+          <div class="tab active" data-tab="all"><i class="fas fa-layer-group"></i> All</div>
+          <div class="tab" data-tab="message"><i class="fas fa-envelope"></i> Messages</div>
+          <div class="tab" data-tab="deadline"><i class="fas fa-calendar-alt"></i> Deadlines</div>
+          <div class="tab" data-tab="document"><i class="fas fa-file-alt"></i> Documents</div>
+          <div class="tab" data-tab="system"><i class="fas fa-cog"></i> System</div>
+        </div>
+        <div class="settings">
+          <div class="setting-item">
+            <span>Show only unread by default</span>
+            <input type="checkbox" id="prefOnlyUnread" />
+          </div>
+          <div class="setting-item">
+            <span>Sort by priority</span>
+            <input type="checkbox" id="prefSortPriority" />
+          </div>
+          <div class="setting-item">
+            <span>Email alerts</span>
+            <input type="checkbox" id="prefEmail" />
+          </div>
+        </div>
+      </aside>
+      <main class="panel">
+        <div class="tools">
+          <input class="search" id="search" placeholder="Search notifications" />
+          <select class="filter" id="typeFilter">
+            <option value="all">All types</option>
+            <option value="message">Messages</option>
+            <option value="deadline">Deadlines</option>
+            <option value="document">Documents</option>
+            <option value="system">System</option>
+          </select>
+        </div>
+        <div class="list" id="list"></div>
+        <div class="empty" id="empty" style="display:none">No notifications found.</div>
+      </main>
+    </div>
+  </div>
+  <!-- Details Modal -->
+  <div id="detailsModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Notification details">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title" id="detailsTitle">Notification</div>
+        <button class="btn btn-outline" id="detailsClose" type="button">Close</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-meta" id="detailsMeta"></div>
+        <div id="detailsDesc" style="color:#374151"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" id="detailsToggle">Mark unread</button>
+        <button class="btn btn-outline" id="detailsArchive">Archive</button>
+        <button class="btn btn-outline" id="detailsDelete">Delete</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    const LS_KEY = 'edubridge_notifications_v1';
+    const PREFS_KEY = 'edubridge_notification_settings_v1';
+
+    function seedData(){
+      const existing = JSON.parse(localStorage.getItem(LS_KEY)||'[]');
+      if (existing.length) return existing;
+      const now = Date.now();
+      const samples = [
+        { id:'n1', type:'deadline', title:'Upcoming submission', desc:'Application deadline in 3 days.', sender:'System', ts:now-60*1000, read:false, priority:'high' },
+        { id:'n2', type:'message', title:'Welcome to EduBridge SA', desc:'We’re excited to guide you.', sender:'Support', ts:now-2*60*60*1000, read:false, priority:'low' },
+        { id:'n3', type:'document', title:'Document request', desc:'Proof of residence required.', sender:'Admissions', ts:now-24*60*60*1000, read:true, priority:'medium' },
+        { id:'n4', type:'system', title:'Dark mode update', desc:'New theme options are available.', sender:'System', ts:now-3*24*60*60*1000, read:true, priority:'low' }
+      ];
+      localStorage.setItem(LS_KEY, JSON.stringify(samples));
+      return samples;
+    }
+
+    function load(){ return JSON.parse(localStorage.getItem(LS_KEY)||'[]'); }
+    function save(items){ localStorage.setItem(LS_KEY, JSON.stringify(items)); }
+    function loadPrefs(){ return JSON.parse(localStorage.getItem(PREFS_KEY)||'{}'); }
+    function savePrefs(p){ localStorage.setItem(PREFS_KEY, JSON.stringify(p)); }
+    function relTime(ts){ const s=Math.floor((Date.now()-ts)/1000); if(s<60) return `${s}s ago`; const m=Math.floor(s/60); if(m<60) return `${m}m ago`; const h=Math.floor(m/60); if(h<24) return `${h}h ago`; const d=Math.floor(h/24); return `${d}d ago`; }
+    // Normalize dashboard dropdown data into notifications.html schema
+    function normalizeType(t){ const map={ messages:'message', deadlines:'deadline', documents:'document', status:'system' }; return map[t]||t; }
+    function normalizeItem(i){
+      return {
+        ...i,
+        type: normalizeType(i.type),
+        title: i.title || i.text || 'Notification',
+        desc: i.desc || i.text || '',
+        sender: i.sender || 'System',
+        priority: i.priority || 'low',
+        ts: i.ts || Date.now(),
+        read: !!i.read
+      };
+    }
+
+    // Elements
+    const listEl = document.getElementById('list');
+    const emptyEl = document.getElementById('empty');
+    const tabsEl = document.getElementById('tabs');
+    const searchEl = document.getElementById('search');
+    const typeFilterEl = document.getElementById('typeFilter');
+    const bulkRead = document.getElementById('bulkRead');
+    const bulkUnread = document.getElementById('bulkUnread');
+    const bulkArchive = document.getElementById('bulkArchive');
+    const bulkDelete = document.getElementById('bulkDelete');
+    const markAll = document.getElementById('markAll');
+    const prefOnlyUnread = document.getElementById('prefOnlyUnread');
+    const prefSortPriority = document.getElementById('prefSortPriority');
+    const prefEmail = document.getElementById('prefEmail');
+
+    // State
+    let currentTab = 'all';
+    let selected = new Set();
+
+    seedData();
+    const prefs = Object.assign({ onlyUnread:false, sortPriority:true, email:true }, loadPrefs());
+    prefOnlyUnread.checked = !!prefs.onlyUnread; prefSortPriority.checked = !!prefs.sortPriority; prefEmail.checked = !!prefs.email;
+    prefOnlyUnread.addEventListener('change', ()=>{ prefs.onlyUnread = prefOnlyUnread.checked; savePrefs(prefs); render(); });
+    prefSortPriority.addEventListener('change', ()=>{ prefs.sortPriority = prefSortPriority.checked; savePrefs(prefs); render(); });
+    prefEmail.addEventListener('change', ()=>{ prefs.email = prefEmail.checked; savePrefs(prefs); });
+
+    function render(){
+      let items = load().map(normalizeItem);
+      if (currentTab !== 'all') items = items.filter(i => i.type === currentTab);
+      if (typeFilterEl.value !== 'all') items = items.filter(i => i.type === typeFilterEl.value);
+      if (prefs.onlyUnread) items = items.filter(i => !i.read);
+      const q = searchEl.value.trim().toLowerCase();
+      if (q) items = items.filter(i => `${i.title} ${i.desc} ${i.sender}`.toLowerCase().includes(q));
+      if (prefs.sortPriority) {
+        const weight = { high:3, medium:2, low:1 };
+        items.sort((a,b) => (weight[b.priority]||0)-(weight[a.priority]||0) || b.ts-a.ts);
+      } else {
+        items.sort((a,b) => b.ts-a.ts);
+      }
+      if (!items.length) { listEl.innerHTML=''; emptyEl.style.display='block'; return; }
+      emptyEl.style.display='none';
+      listEl.innerHTML = items.map(i => {
+        const iconClass = i.type==='deadline'?'deadline':i.type==='message'?'message':i.type==='document'?'document':'system';
+        return `
+          <div class="row ${i.read?'':'unread'}" data-id="${i.id}">
+            <input type="checkbox" class="sel" ${selected.has(i.id)?'checked':''} />
+            <div class="icon ${iconClass}"><i class="fas fa-${i.type==='deadline'?'calendar-alt':i.type==='message'?'envelope':i.type==='document'?'file-alt':'cog'}"></i></div>
+            <div>
+              <div class="title-row"><span class="badge">${i.type}</span><strong>${i.title}</strong></div>
+              <div class="meta">${i.sender} • ${relTime(i.ts)} • ${i.priority} priority</div>
+              <div>${i.desc}</div>
+              <div class="actions-row">
+                <a class="link" data-act="toggle">${i.read?'Mark unread':'Mark read'}</a>
+                <a class="link" data-act="archive">Archive</a>
+                <a class="link" data-act="delete">Delete</a>
+              </div>
+            </div>
+            <div style="text-align:right">
+              <a class="link" data-act="open">Open</a>
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    // Events
+    tabsEl.addEventListener('click', (e)=>{
+      const t = e.target.closest('.tab'); if(!t) return;
+      tabsEl.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+      t.classList.add('active'); currentTab = t.getAttribute('data-tab'); render();
+    });
+    searchEl.addEventListener('input', render);
+    typeFilterEl.addEventListener('change', render);
+
+    listEl.addEventListener('click', (e)=>{
+      const row = e.target.closest('.row'); if(!row) return;
+      const id = row.getAttribute('data-id');
+      const act = e.target.getAttribute('data-act');
+      if (e.target.classList.contains('sel')) return;
+      const items = load(); const idx = items.findIndex(n=>n.id===id);
+      if (idx === -1) return;
+      if (act === 'toggle') { items[idx].read = !items[idx].read; save(items); render(); }
+      else if (act === 'archive') { items[idx].archived = true; save(items); render(); }
+      else if (act === 'delete') { items.splice(idx,1); save(items); render(); }
+      else if (act === 'open') {
+        const ni = normalizeItem(items[idx]);
+        showDetails(ni);
+        items[idx].read = true; save(items); render();
+      }
+    });
+
+    listEl.addEventListener('change', (e)=>{
+      if (!e.target.classList.contains('sel')) return;
+      const row = e.target.closest('.row'); const id = row.getAttribute('data-id');
+      if (e.target.checked) selected.add(id); else selected.delete(id);
+    });
+
+    bulkRead.addEventListener('click', ()=>{ const items=load(); items.forEach(i=>{ if(selected.has(i.id)) i.read=true; }); save(items); render(); });
+    bulkUnread.addEventListener('click', ()=>{ const items=load(); items.forEach(i=>{ if(selected.has(i.id)) i.read=false; }); save(items); render(); });
+    bulkArchive.addEventListener('click', ()=>{ const items=load(); items.forEach(i=>{ if(selected.has(i.id)) i.archived=true; }); save(items); render(); });
+    bulkDelete.addEventListener('click', ()=>{ let items=load(); items = items.filter(i=>!selected.has(i.id)); save(items); selected.clear(); render(); });
+    markAll.addEventListener('click', ()=>{ const items=load().map(i=>({ ...i, read:true })); save(items); render(); });
+
+    // Initial render
+    render();
+    // Details modal logic
+    const detailsModal = document.getElementById('detailsModal');
+    const detailsTitle = document.getElementById('detailsTitle');
+    const detailsMeta = document.getElementById('detailsMeta');
+    const detailsDesc = document.getElementById('detailsDesc');
+    const detailsClose = document.getElementById('detailsClose');
+    const detailsToggle = document.getElementById('detailsToggle');
+    const detailsArchive = document.getElementById('detailsArchive');
+    const detailsDelete = document.getElementById('detailsDelete');
+    let detailsId = null;
+
+    function showDetails(item){
+      detailsId = item.id;
+      detailsTitle.textContent = item.title;
+      detailsDesc.textContent = item.desc || '';
+      detailsMeta.innerHTML = `
+        <span><i class="fas fa-user"></i> ${item.sender}</span>
+        <span><i class="fas fa-clock"></i> ${relTime(item.ts)}</span>
+        <span><i class="fas fa-tag"></i> ${item.type}</span>
+        <span><i class="fas fa-signal"></i> ${item.priority} priority</span>
+      `;
+      detailsToggle.textContent = item.read ? 'Mark unread' : 'Mark read';
+      detailsModal.style.display = 'flex';
+    }
+
+    function closeDetails(){ detailsModal.style.display = 'none'; detailsId = null; }
+    detailsClose.addEventListener('click', closeDetails);
+    detailsModal.addEventListener('click', (e)=>{ if(e.target === detailsModal) closeDetails(); });
+    document.addEventListener('keydown', (e)=>{ if (e.key === 'Escape' && detailsModal.style.display === 'flex') closeDetails(); });
+
+    detailsToggle.addEventListener('click', ()=>{
+      if (!detailsId) return;
+      const items = load(); const idx = items.findIndex(n=>n.id===detailsId); if (idx===-1) return;
+      items[idx].read = !items[idx].read; save(items); render(); closeDetails();
+    });
+    detailsArchive.addEventListener('click', ()=>{
+      if (!detailsId) return; const items = load(); const idx = items.findIndex(n=>n.id===detailsId); if (idx===-1) return;
+      items[idx].archived = true; save(items); render(); closeDetails();
+    });
+    detailsDelete.addEventListener('click', ()=>{
+      if (!detailsId) return; let items = load(); items = items.filter(n=>n.id!==detailsId); save(items); render(); closeDetails();
+    });
+  </script>
+</body>
+</html>

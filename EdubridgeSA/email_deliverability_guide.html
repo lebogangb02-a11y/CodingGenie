@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Deliverability Guide - EduBridgeSA</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .header {
+            background: #2c5aa0;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border-left: 4px solid #2c5aa0;
+            background: #f8f9fa;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .good { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .warning { background: #fff3cd; border: 1px solid #ffeaa7; color: #856404; }
+        .error { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .recommendation {
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        .code {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 3px;
+            font-family: monospace;
+            margin: 10px 0;
+        }
+        ol, ul {
+            padding-left: 20px;
+        }
+        .whitelist-section {
+            background: #e8f5e8;
+            border: 2px solid #4caf50;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Email Deliverability Analysis & Solutions</h1>
+        <p>EduBridgeSA Contact Form - Spam Folder Prevention Guide</p>
+    </div>
+
+    <div class="section">
+        <h2>📊 Current DNS Authentication Status</h2>
+        
+        <div class="status good">
+            <strong>✅ SPF Record:</strong> Properly configured<br>
+            <code>v=spf1 include:_spf.mail.hostinger.com include:_spf.reach.hostinger.com ~all</code>
+        </div>
+        
+        <div class="status warning">
+            <strong>⚠️ DMARC Record:</strong> Present but in monitoring mode<br>
+            <code>v=DMARC1; p=none</code>
+        </div>
+        
+        <div class="status warning">
+            <strong>⚠️ DKIM Record:</strong> Not found with common selectors<br>
+            May be configured with a different selector by Hostinger
+        </div>
+        
+        <div class="status good">
+            <strong>✅ MX Records:</strong> Properly configured<br>
+            <code>mx1.hostinger.com (Priority: 5), mx2.hostinger.com (Priority: 10)</code>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>🔧 Immediate Actions Required</h2>
+        
+        <div class="recommendation">
+            <h3>1. Contact Hostinger Support</h3>
+            <p><strong>Priority: HIGH</strong></p>
+            <p>Contact Hostinger support and request the following:</p>
+            <ul>
+                <li>Enable DKIM signing for your domain (edubridgesa.co.za)</li>
+                <li>Provide the DKIM selector being used</li>
+                <li>Upgrade DMARC policy from "p=none" to "p=quarantine"</li>
+                <li>Verify SPF record includes all necessary Hostinger servers</li>
+            </ul>
+        </div>
+
+        <div class="recommendation">
+            <h3>2. Update DMARC Policy</h3>
+            <p><strong>Priority: MEDIUM</strong></p>
+            <p>Once DKIM is properly configured, update your DMARC record to:</p>
+            <div class="code">v=DMARC1; p=quarantine; rua=mailto:dmarc@edubridgesa.co.za; ruf=mailto:dmarc@edubridgesa.co.za; fo=1</div>
+            <p><em>Note: Only do this after confirming DKIM is working properly</em></p>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>📈 Technical Improvements Implemented</h2>
+        
+        <h3>✅ Enhanced Contact Form</h3>
+        <ul>
+            <li>Switched from basic mail() function to PHPMailer with SMTP authentication</li>
+            <li>Added comprehensive anti-spam headers</li>
+            <li>Implemented proper email authentication</li>
+            <li>Optimized email content and formatting</li>
+            <li>Added Return-Path and sender authentication</li>
+        </ul>
+
+        <h3>✅ Anti-Spam Headers Added</h3>
+        <ul>
+            <li>X-Mailer identification</li>
+            <li>Message priority and importance headers</li>
+            <li>Source domain and IP tracking</li>
+            <li>Content classification headers</li>
+            <li>List management headers</li>
+            <li>DMARC alignment headers</li>
+        </ul>
+    </div>
+
+    <div class="whitelist-section">
+        <h2>📧 User Instructions: How to Whitelist Our Emails</h2>
+        
+        <p><strong>Share these instructions with users who report emails going to spam:</strong></p>
+
+        <h3>Gmail Users:</h3>
+        <ol>
+            <li>Open Gmail and go to your Spam folder</li>
+            <li>Find the email from EduBridgeSA (info@edubridgesa.co.za)</li>
+            <li>Select the email and click "Not Spam"</li>
+            <li>Add info@edubridgesa.co.za to your contacts:
+                <ul>
+                    <li>Click the sender's name</li>
+                    <li>Click "Add to Contacts"</li>
+                </ul>
+            </li>
+        </ol>
+
+        <h3>Outlook/Hotmail Users:</h3>
+        <ol>
+            <li>Go to Settings (gear icon) → View all Outlook settings</li>
+            <li>Go to Mail → Junk email</li>
+            <li>Under "Safe senders and domains", click "Add"</li>
+            <li>Enter: info@edubridgesa.co.za</li>
+            <li>Click "Save"</li>
+        </ol>
+
+        <h3>Yahoo Mail Users:</h3>
+        <ol>
+            <li>Go to Settings → More Settings → Filters</li>
+            <li>Click "Add new filters"</li>
+            <li>Set "From" contains: info@edubridgesa.co.za</li>
+            <li>Choose "Move to folder" → Inbox</li>
+            <li>Save the filter</li>
+        </ol>
+
+        <h3>Apple Mail Users:</h3>
+        <ol>
+            <li>Open the email from EduBridgeSA</li>
+            <li>Click the sender's email address</li>
+            <li>Select "Add to Contacts"</li>
+            <li>Or go to Mail → Preferences → Rules to create a rule</li>
+        </ol>
+    </div>
+
+    <div class="section">
+        <h2>🔍 Monitoring & Testing Tools</h2>
+        
+        <h3>Recommended Testing Tools:</h3>
+        <ul>
+            <li><strong>Mail-Tester.com:</strong> Test email spam score (aim for 10/10)</li>
+            <li><strong>MXToolbox.com:</strong> Check domain reputation and blacklists</li>
+            <li><strong>Google Postmaster Tools:</strong> Monitor Gmail delivery reputation</li>
+            <li><strong>Microsoft SNDS:</strong> Monitor Outlook.com delivery reputation</li>
+        </ul>
+
+        <h3>Regular Monitoring:</h3>
+        <ul>
+            <li>Check domain reputation weekly</li>
+            <li>Monitor bounce rates and spam complaints</li>
+            <li>Test email delivery to different providers monthly</li>
+            <li>Review email authentication status quarterly</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>📋 Next Steps Checklist</h2>
+        
+        <h3>Immediate (This Week):</h3>
+        <ul>
+            <li>☐ Contact Hostinger support for DKIM setup</li>
+            <li>☐ Test contact form with mail-tester.com</li>
+            <li>☐ Share whitelist instructions with users</li>
+        </ul>
+
+        <h3>Short Term (Next 2 Weeks):</h3>
+        <ul>
+            <li>☐ Verify DKIM is working properly</li>
+            <li>☐ Update DMARC policy to "quarantine"</li>
+            <li>☐ Set up email monitoring tools</li>
+        </ul>
+
+        <h3>Long Term (Next Month):</h3>
+        <ul>
+            <li>☐ Monitor email delivery rates</li>
+            <li>☐ Gradually build sender reputation</li>
+            <li>☐ Review and optimize email content regularly</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>📞 Support Contacts</h2>
+        
+        <p><strong>Hostinger Support:</strong></p>
+        <ul>
+            <li>Live Chat: Available 24/7 through your hosting panel</li>
+            <li>Email: support@hostinger.com</li>
+            <li>Phone: Check your hosting panel for regional numbers</li>
+        </ul>
+
+        <p><strong>When contacting support, mention:</strong></p>
+        <ul>
+            <li>Domain: edubridgesa.co.za</li>
+            <li>Issue: Need DKIM configuration for email deliverability</li>
+            <li>Request: Enable DKIM signing and provide selector information</li>
+        </ul>
+    </div>
+
+    <footer style="text-align: center; margin-top: 40px; padding: 20px; border-top: 1px solid #ddd; color: #666;">
+        <p><em>Generated on: <?php echo date('F j, Y \a\t g:i A T'); ?></em></p>
+        <p>EduBridgeSA Email Deliverability Guide v1.0</p>
+    </footer>
+</body>
+</html>

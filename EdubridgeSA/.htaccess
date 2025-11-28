@@ -1,0 +1,67 @@
+# EduBridge SA Application Security Configuration
+
+# Prevent access to sensitive files
+<Files "config.php">
+    Order allow,deny
+    Deny from all
+</Files>
+
+<Files "database.sql">
+    Order allow,deny
+    Deny from all
+</Files>
+
+# Prevent access to uploads directory browsing
+Options -Indexes
+
+# Enable error reporting for development (remove in production)
+php_flag display_errors On
+php_flag log_errors On
+
+# Set maximum file upload size
+php_value upload_max_filesize 5M
+php_value post_max_size 10M
+php_value max_execution_time 300
+
+# Security headers
+Header always set X-Content-Type-Options nosniff
+Header always set X-Frame-Options DENY
+Header always set X-XSS-Protection "1; mode=block"
+
+# Redirect apply.html to apply.php (fix for 404 errors)
+RewriteEngine On
+# Set OpenAI API Key securely via environment variable
+SetEnv OPENAI_API_KEY "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"
+RewriteRule ^apply\.html$ apply.php [L,R=301]
+
+# Canonical host: force apex domain (avoid www<>non-www cookie mismatches)
+RewriteCond %{HTTP_HOST} ^www\.edubridgesa\.co\.za$ [NC]
+RewriteRule ^(.*)$ https://edubridgesa.co.za/$1 [L,R=301]
+
+# Enforce HTTPS (covers direct and proxy-terminated TLS)
+RewriteCond %{HTTPS} !=on [OR]
+RewriteCond %{HTTP:X-Forwarded-Proto} !https [NC]
+RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Block PHP execution from uploads and restrict served types
+RewriteRule ^uploads/.*\.(php|phtml|php3|php4|php5|phps)$ - [F]
+<Directory "uploads">
+  Options -Indexes -ExecCGI
+  <FilesMatch "\.(php|phtml|php3|php4|php5|phps)$">
+    Order allow,deny
+    Deny from all
+  </FilesMatch>
+  <FilesMatch "\.(jpg|jpeg|png|gif|webp)$">
+    Order allow,deny
+    Allow from all
+  </FilesMatch>
+</Directory>
+
+# Cache static assets lightly
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType image/jpeg "access plus 30 days"
+  ExpiresByType image/png  "access plus 30 days"
+  ExpiresByType text/css   "access plus 7 days"
+  ExpiresByType application/javascript "access plus 7 days"
+</IfModule>
