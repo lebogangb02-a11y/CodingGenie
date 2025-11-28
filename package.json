@@ -1,0 +1,16 @@
+{
+  "name": "codinggenie",
+  "version": "1.0.0",
+  "description": "CodingGenie test server",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}
