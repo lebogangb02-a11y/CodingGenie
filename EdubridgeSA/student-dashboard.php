@@ -1627,7 +1627,9 @@ try {
                     confetti({
                         particleCount: 120,
                         spread: 100,
-                        origin: { y: 0.6 }
+                        origin: {
+                            y: 0.6
+                        }
                     });
                 } catch (e) {
                     console.warn('Confetti failed:', e);
@@ -1671,7 +1673,9 @@ try {
                 }
 
                 try {
-                    fetch('get-dashboard-metrics.php', { credentials: 'same-origin' })
+                    fetch('get-dashboard-metrics.php', {
+                            credentials: 'same-origin'
+                        })
                         .then(function(r) {
                             if (!r.ok) throw new Error('HTTP ' + r.status);
                             return r.json();

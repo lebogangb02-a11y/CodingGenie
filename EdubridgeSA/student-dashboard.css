@@ -1,1153 +1,1068 @@
-<?php
-require_once 'session_config.php';
+<?php require_once 'session_config.php';
 require_once 'config.php';
 
 // Start session and check if user is logged in
 // Session is initialized via session_config.php; no manual session_start needed.
 
 // Simple authentication check
-if (!isset($_SESSION['student_logged_in']) || $_SESSION['student_logged_in'] !== true) {
+if ( !isset($_SESSION['student_logged_in']) || $_SESSION['student_logged_in'] !==true) {
     header('Location: student-login.php');
     exit();
 }
 
 // Get user data from session
-$username = $_SESSION['student_name'] ?? 'Student';
-$email = $_SESSION['student_email'] ?? '';
-$reference_number = $_SESSION['reference_number'] ?? 'APP2025000000';
-$application_status = $_SESSION['application_status'] ?? 'draft';
-$student_id = $_SESSION['student_id'] ?? '';
+$username =$_SESSION['student_name'] ?? 'Student';
+$email =$_SESSION['student_email'] ?? '';
+$reference_number =$_SESSION['reference_number'] ?? 'APP2025000000';
+$application_status =$_SESSION['application_status'] ?? 'draft';
+$student_id =$_SESSION['student_id'] ?? '';
 
 // Generate canonical Upload Documents URL for this session
-$upload_docs_url = 'document_upload.php';
+$upload_docs_url ='document_upload.php';
+
 try {
-    $contactEmail = $_SESSION['student_email'] ?? $_SESSION['email'] ?? null;
-    $resolvedRef = null;
-    if (!empty($reference_number)) { $resolvedRef = $reference_number; }
-    if (!$resolvedRef && $contactEmail) {
-        $stmt = $pdo->prepare("SELECT reference_number FROM applications WHERE email_address = ? ORDER BY updated_at DESC, id DESC LIMIT 1");
+    $contactEmail =$_SESSION['student_email'] ?? $_SESSION['email'] ?? null;
+    $resolvedRef =null;
+
+    if ( !empty($reference_number)) {
+        $resolvedRef =$reference_number;
+    }
+
+    if ( !$resolvedRef && $contactEmail) {
+        $stmt =$pdo->prepare("SELECT reference_number FROM applications WHERE email_address = ? ORDER BY updated_at DESC, id DESC LIMIT 1");
         $stmt->execute([$contactEmail]);
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        if ($row && !empty($row['reference_number'])) { $resolvedRef = $row['reference_number']; }
+        $row =$stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($row && !empty($row['reference_number'])) {
+            $resolvedRef =$row['reference_number'];
+        }
     }
-    if (!$resolvedRef) {
-        $sessionRef = $_SESSION['reference_number'] ?? null;
-        if ($sessionRef) { $resolvedRef = $sessionRef; }
+
+    if ( !$resolvedRef) {
+        $sessionRef =$_SESSION['reference_number'] ?? null;
+
+        if ($sessionRef) {
+            $resolvedRef =$sessionRef;
+        }
     }
+
     if ($resolvedRef) {
-        $upload_docs_url = 'document_upload.php?ref=' . urlencode($resolvedRef);
+        $upload_docs_url ='document_upload.php?ref=' . urlencode($resolvedRef);
     }
-} catch (PDOException $e) {
+}
+
+catch (PDOException $e) {
     error_log('student-dashboard upload link error: ' . $e->getMessage());
 }
-?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Student Dashboard - EduBridgeSA</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        /* ============================================================================
+
+?>< !DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Student Dashboard - EduBridgeSA</title><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css"><link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet"><style>
+
+/* ============================================================================
            GLOBAL CSS VARIABLES - Modern Design System
            ============================================================================ */
-        :root {
-            /* Color Palette */
-            --primary-color: #0054a6;
-            --accent-color: #0099ff;
-            --success-color: #059669;
-            --warning-color: #f59e0b;
-            --danger-color: #dc2626;
-            --text-color: #2b2b2b;
-            --text-light: #6b7280;
-            --bg-color: #f5f7fa;
-            --bg-white: #ffffff;
-            --border-color: #e5e7eb;
-            
-            /* Neutral Greys (Tailwind-inspired) */
-            --gray-50: #f9fafb;
-            --gray-100: #f3f4f6;
-            --gray-200: #e5e7eb;
-            --gray-300: #d1d5db;
-            --gray-400: #9ca3af;
-            --gray-500: #6b7280;
-            --gray-600: #4b5563;
-            --gray-700: #374151;
-            --gray-800: #1f2937;
-            --gray-900: #111827;
-            
-            /* Spacing System (8px base) */
-            --space-xs: 4px;
-            --space-sm: 8px;
-            --space-md: 16px;
-            --space-lg: 24px;
-            --space-xl: 32px;
-            --space-2xl: 48px;
-            
-            /* Border Radius */
-            --radius: 10px;
-            --radius-sm: 6px;
-            --radius-lg: 16px;
-            
-            /* Shadows */
-            --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.04);
-            --shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
-            --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.1);
-            --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.12);
-            --shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.12);
-            
-            /* Typography */
-            --font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            --font-mono: 'Courier New', monospace;
-        }
+:root {
+    /* Color Palette */
+    --primary-color: #0054a6;
+    --accent-color: #0099ff;
+    --success-color: #059669;
+    --warning-color: #f59e0b;
+    --danger-color: #dc2626;
+    --text-color: #2b2b2b;
+    --text-light: #6b7280;
+    --bg-color: #f5f7fa;
+    --bg-white: #ffffff;
+    --border-color: #e5e7eb;
 
-        /* ============================================================================
+    /* Neutral Greys (Tailwind-inspired) */
+    --gray-50: #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-300: #d1d5db;
+    --gray-400: #9ca3af;
+    --gray-500: #6b7280;
+    --gray-600: #4b5563;
+    --gray-700: #374151;
+    --gray-800: #1f2937;
+    --gray-900: #111827;
+
+    /* Spacing System (8px base) */
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 16px;
+    --space-lg: 24px;
+    --space-xl: 32px;
+    --space-2xl: 48px;
+
+    /* Border Radius */
+    --radius: 10px;
+    --radius-sm: 6px;
+    --radius-lg: 16px;
+
+    /* Shadows */
+    --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.04);
+    --shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+    --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.12);
+    --shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.12);
+
+    /* Typography */
+    --font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'Courier New', monospace;
+}
+
+/* ============================================================================
            RESET & BASE STYLES
            ============================================================================ */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
 
-        html {
-            scroll-behavior: smooth;
-            -webkit-font-smoothing: antialiased;
-        }
+html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+}
 
-        body {
-            font-family: var(--font-family);
-            background: linear-gradient(135deg, #0f3a7d 0%, #1e5a96 100%);
-            min-height: 100vh;
-            color: var(--text-color);
-            line-height: 1.6;
-            font-size: 16px;
-        }
+body {
+    font-family: var(--font-family);
+    background: linear-gradient(135deg, #0f3a7d 0%, #1e5a96 100%);
+    min-height: 100vh;
+    color: var(--text-color);
+    line-height: 1.6;
+    font-size: 16px;
+}
 
-        /* ============================================================================
+/* ============================================================================
            ANIMATIONS & TRANSITIONS
            ============================================================================ */
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
 
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
+    to {
+        opacity: 1;
+    }
+}
 
-        @keyframes slideInDown {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
 
-        @keyframes scaleIn {
-            from {
-                opacity: 0;
-                transform: scale(0.95);
-            }
-            to {
-                opacity: 1;
-                transform: scale(1);
-            }
-        }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
 
-        @keyframes shimmer {
-            0% { background-position: -1000px 0; }
-            100% { background-position: 1000px 0; }
-        }
+@keyframes slideInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
 
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
 
-        @keyframes moveBar {
-            0% { background-position: 0 0; }
-            100% { background-position: 50px 50px; }
-        }
+@keyframes scaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
 
-        /* ============================================================================
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: -1000px 0;
+    }
+
+    100% {
+        background-position: 1000px 0;
+    }
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}
+
+@keyframes moveBar {
+    0% {
+        background-position: 0 0;
+    }
+
+    100% {
+        background-position: 50px 50px;
+    }
+}
+
+/* ============================================================================
            LAYOUT - RESPONSIVE DASHBOARD CONTAINER
            ============================================================================ */
-        .dashboard-container {
-            display: grid;
-            grid-template-columns: 1fr 300px;
-            gap: var(--space-lg);
-            padding: var(--space-lg);
-            max-width: 1400px;
-            margin: 0 auto;
-            animation: fadeInUp 0.6s ease-out;
-        }
+.dashboard-container {
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    gap: var(--space-lg);
+    padding: var(--space-lg);
+    max-width: 1400px;
+    margin: 0 auto;
+    animation: fadeInUp 0.6s ease-out;
+}
 
-        .main-content {
-            display: flex;
-            flex-direction: column;
-            gap: var(--space-lg);
-        }
+.main-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+}
 
-        .sidebar {
-            display: flex;
-            flex-direction: column;
-            gap: var(--space-md);
-        }
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
 
-        /* ============================================================================
+/* ============================================================================
            CARD COMPONENT - Universal Card Styling
            ============================================================================ */
-        .card {
-            background: var(--bg-white);
-            border-radius: var(--radius-lg);
-            padding: var(--space-lg);
-            box-shadow: var(--shadow);
-            border: 1px solid var(--border-color);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            animation: fadeIn 0.4s ease-out;
-        }
+.card {
+    background: var(--bg-white);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border-color);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: fadeIn 0.4s ease-out;
+}
 
-        .card:hover {
-            box-shadow: var(--shadow-hover);
-            transform: translateY(-4px);
-            border-color: var(--accent-color);
-        }
+.card:hover {
+    box-shadow: var(--shadow-hover);
+    transform: translateY(-4px);
+    border-color: var(--accent-color);
+}
 
-        /* ============================================================================
+/* ============================================================================
            WELCOME SECTION
            ============================================================================ */
-        .welcome-section {
-            position: relative;
-            overflow: hidden;
-        }
+.welcome-section {
+    position: relative;
+    overflow: hidden;
+}
 
-        .welcome-section h1 {
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--gray-900);
-            margin-bottom: var(--space-sm);
-            letter-spacing: -0.5px;
-        }
+.welcome-section h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin-bottom: var(--space-sm);
+    letter-spacing: -0.5px;
+}
 
-        .welcome-section p {
-            font-size: 1.05rem;
-            color: var(--text-light);
-            font-weight: 500;
-            margin-bottom: var(--space-md);
-        }
+.welcome-section p {
+    font-size: 1.05rem;
+    color: var(--text-light);
+    font-weight: 500;
+    margin-bottom: var(--space-md);
+}
 
-        /* ============================================================================
+/* ============================================================================
            PROGRESS SECTION
            ============================================================================ */
-        .progress-section {
-            text-align: center;
-            background: linear-gradient(135deg, rgba(0, 84, 166, 0.05) 0%, rgba(0, 153, 255, 0.05) 100%);
-            padding: var(--space-lg);
-            border-radius: var(--radius-lg);
-        }
+.progress-section {
+    text-align: center;
+    background: linear-gradient(135deg, rgba(0, 84, 166, 0.05) 0%, rgba(0, 153, 255, 0.05) 100%);
+    padding: var(--space-lg);
+    border-radius: var(--radius-lg);
+}
 
-        .status-badge {
-            display: inline-block;
-            background: var(--accent-color);
-            color: var(--bg-white);
-            padding: var(--space-sm) var(--space-md);
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 700;
-            margin-bottom: var(--space-md);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            box-shadow: 0 2px 8px rgba(0, 84, 166, 0.15);
-        }
+.status-badge {
+    display: inline-block;
+    background: var(--accent-color);
+    color: var(--bg-white);
+    padding: var(--space-sm) var(--space-md);
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin-bottom: var(--space-md);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 8px rgba(0, 84, 166, 0.15);
+}
 
-        .progress-percentage {
-            font-size: 3.5rem;
-            font-weight: 900;
-            color: var(--primary-color);
-            margin: var(--space-md) 0;
-            line-height: 1;
-        }
+.progress-percentage {
+    font-size: 3.5rem;
+    font-weight: 900;
+    color: var(--primary-color);
+    margin: var(--space-md) 0;
+    line-height: 1;
+}
 
-        .progress-label {
-            font-size: 1rem;
-            color: var(--text-light);
-            margin-bottom: var(--space-lg);
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
+.progress-label {
+    font-size: 1rem;
+    color: var(--text-light);
+    margin-bottom: var(--space-lg);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
 
-        /* Progress Bar */
-        .progress-container {
-            background: var(--gray-200);
-            border-radius: 12px;
-            height: 8px;
-            margin: var(--space-lg) 0;
-            overflow: hidden;
-            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
+/* Progress Bar */
+.progress-container {
+    background: var(--gray-200);
+    border-radius: 12px;
+    height: 8px;
+    margin: var(--space-lg) 0;
+    overflow: hidden;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+}
 
-        .progress-bar {
-            background: linear-gradient(90deg, var(--success-color) 0%, #34d399 100%);
-            height: 100%;
-            border-radius: 12px;
-            width: 35%;
-            transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-            overflow: hidden;
-            box-shadow: 0 0 10px rgba(5, 150, 105, 0.3);
-        }
+.progress-bar {
+    background: linear-gradient(90deg, var(--success-color) 0%, #34d399 100%);
+    height: 100%;
+    border-radius: 12px;
+    width: 35%;
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 0 10px rgba(5, 150, 105, 0.3);
+}
 
-        .progress-bar::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            bottom: 0;
-            right: 0;
-            background-image: linear-gradient(-45deg,
-                rgba(255, 255, 255, 0.15) 25%,
-                transparent 25%,
-                transparent 50%,
-                rgba(255, 255, 255, 0.15) 50%,
-                rgba(255, 255, 255, 0.15) 75%,
-                transparent 75%,
-                transparent);
-            background-size: 50px 50px;
-            animation: moveBar 2s linear infinite;
-        }
+.progress-bar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background-image: linear-gradient(-45deg,
+            rgba(255, 255, 255, 0.15) 25%,
+            transparent 25%,
+            transparent 50%,
+            rgba(255, 255, 255, 0.15) 50%,
+            rgba(255, 255, 255, 0.15) 75%,
+            transparent 75%,
+            transparent);
+    background-size: 50px 50px;
+    animation: moveBar 2s linear infinite;
+}
 
-        /* ============================================================================
+/* ============================================================================
            PROGRESS STEPS
            ============================================================================ */
-        .progress-steps-container {
-            margin: var(--space-lg) 0;
-        }
+.progress-steps-container {
+    margin: var(--space-lg) 0;
+}
 
-        .progress-steps {
-            display: flex;
-            justify-content: space-between;
-            position: relative;
-            margin: 48px 0;
-            pointer-events: none;
-            gap: var(--space-md);
-        }
+.progress-steps {
+    display: flex;
+    justify-content: space-between;
+    position: relative;
+    margin: 48px 0;
+    pointer-events: none;
+    gap: var(--space-md);
+}
 
-        .progress-steps::before {
-            content: '';
-            position: absolute;
-            top: 25px;
-            left: 5%;
-            right: 5%;
-            height: 3px;
-            background: var(--gray-300);
-            z-index: 0;
-            border-radius: 2px;
-            pointer-events: none;
-        }
+.progress-steps::before {
+    content: '';
+    position: absolute;
+    top: 25px;
+    left: 5%;
+    right: 5%;
+    height: 3px;
+    background: var(--gray-300);
+    z-index: 0;
+    border-radius: 2px;
+    pointer-events: none;
+}
 
-        .step {
-            text-align: center;
-            position: relative;
-            z-index: 2;
-            flex: 1;
-            pointer-events: none;
-        }
+.step {
+    text-align: center;
+    position: relative;
+    z-index: 2;
+    flex: 1;
+    pointer-events: none;
+}
 
-        .step-icon {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background: var(--gray-200);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto var(--space-md);
-            font-weight: 700;
-            font-size: 1.2rem;
-            transition: all 0.3s ease;
-            border: 3px solid var(--bg-white);
-            box-shadow: var(--shadow-sm);
-            color: var(--gray-600);
-        }
+.step-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: var(--gray-200);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto var(--space-md);
+    font-weight: 700;
+    font-size: 1.2rem;
+    transition: all 0.3s ease;
+    border: 3px solid var(--bg-white);
+    box-shadow: var(--shadow-sm);
+    color: var(--gray-600);
+}
 
-        .step.completed .step-icon {
-            background: var(--success-color);
-            color: var(--bg-white);
-            border-color: var(--success-color);
-            box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
-        }
+.step.completed .step-icon {
+    background: var(--success-color);
+    color: var(--bg-white);
+    border-color: var(--success-color);
+    box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+}
 
-        .step.current .step-icon {
-            background: var(--primary-color);
-            color: var(--bg-white);
-            border-color: var(--accent-color);
-            box-shadow: 0 0 0 4px rgba(0, 84, 166, 0.15);
-            transform: scale(1.15);
-            animation: pulse 2s ease-in-out infinite;
-        }
+.step.current .step-icon {
+    background: var(--primary-color);
+    color: var(--bg-white);
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 4px rgba(0, 84, 166, 0.15);
+    transform: scale(1.15);
+    animation: pulse 2s ease-in-out infinite;
+}
 
-        .step.locked .step-icon {
-            background: var(--gray-300);
-            color: var(--gray-600);
-            border-color: var(--gray-300);
-            opacity: 0.6;
-        }
+.step.locked .step-icon {
+    background: var(--gray-300);
+    color: var(--gray-600);
+    border-color: var(--gray-300);
+    opacity: 0.6;
+}
 
-        .step-label {
-            font-size: 0.9rem;
-            font-weight: 700;
-            color: var(--text-light);
-            margin-top: var(--space-sm);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
+.step-label {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-light);
+    margin-top: var(--space-sm);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
 
-        .step.completed .step-label {
-            color: var(--success-color);
-        }
+.step.completed .step-label {
+    color: var(--success-color);
+}
 
-        .step.current .step-label {
-            color: var(--primary-color);
-            font-weight: 800;
-        }
+.step.current .step-label {
+    color: var(--primary-color);
+    font-weight: 800;
+}
 
-        /* ============================================================================
+/* ============================================================================
            BUTTONS - Unified Button System
            ============================================================================ */
-        .action-buttons {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: var(--space-md);
-            margin-top: var(--space-lg);
-            position: relative;
-            z-index: 10;
-            pointer-events: auto;
-        }
+.action-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-md);
+    margin-top: var(--space-lg);
+    position: relative;
+    z-index: 10;
+    pointer-events: auto;
+}
 
-        .btn {
-            padding: 12px 20px;
-            border: none;
-            border-radius: var(--radius);
-            font-size: 0.95rem;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.25s ease;
-            text-align: center;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: var(--space-sm);
-            pointer-events: auto;
-            position: relative;
-            overflow: hidden;
-            letter-spacing: 0.3px;
-        }
+.btn {
+    padding: 12px 20px;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    text-align: center;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-sm);
+    pointer-events: auto;
+    position: relative;
+    overflow: hidden;
+    letter-spacing: 0.3px;
+}
 
-        .btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
 
-        .btn:focus-visible {
-            outline: 2px solid var(--primary-color);
-            outline-offset: 2px;
-        }
+.btn:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
 
-        /* Primary Button */
-        .btn-primary {
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
-            color: var(--bg-white);
-            box-shadow: 0 4px 12px rgba(0, 84, 166, 0.2);
-        }
+/* Primary Button */
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+    color: var(--bg-white);
+    box-shadow: 0 4px 12px rgba(0, 84, 166, 0.2);
+}
 
-        .btn-primary:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 84, 166, 0.3);
-        }
+.btn-primary:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 84, 166, 0.3);
+}
 
-        .btn-primary:active:not(:disabled) {
-            transform: translateY(0);
-        }
+.btn-primary:active:not(:disabled) {
+    transform: translateY(0);
+}
 
-        /* Secondary Button */
-        .btn-secondary {
-            background: var(--gray-100);
-            color: var(--text-color);
-            border: 2px solid var(--border-color);
-            font-weight: 600;
-        }
+/* Secondary Button */
+.btn-secondary {
+    background: var(--gray-100);
+    color: var(--text-color);
+    border: 2px solid var(--border-color);
+    font-weight: 600;
+}
 
-        .btn-secondary:hover:not(:disabled) {
-            background: var(--bg-color);
-            border-color: var(--accent-color);
-            color: var(--primary-color);
-            transform: translateY(-2px);
-            box-shadow: var(--shadow);
-        }
+.btn-secondary:hover:not(:disabled) {
+    background: var(--bg-color);
+    border-color: var(--accent-color);
+    color: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+}
 
-        /* Chat Button */
-        .btn-chat {
-            background: linear-gradient(135deg, var(--success-color) 0%, #34d399 100%);
-            color: var(--bg-white);
-            box-shadow: 0 4px 12px rgba(5, 150, 105, 0.2);
-        }
+/* Chat Button */
+.btn-chat {
+    background: linear-gradient(135deg, var(--success-color) 0%, #34d399 100%);
+    color: var(--bg-white);
+    box-shadow: 0 4px 12px rgba(5, 150, 105, 0.2);
+}
 
-        .btn-chat:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(5, 150, 105, 0.3);
-        }
+.btn-chat:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(5, 150, 105, 0.3);
+}
 
-        .btn-chat .badge {
-            background: var(--danger-color);
-            color: var(--bg-white);
-            border-radius: 50%;
-            padding: var(--space-xs) 6px;
-            font-size: 0.7rem;
-            font-weight: 800;
-            margin-left: var(--space-sm);
-        }
+.btn-chat .badge {
+    background: var(--danger-color);
+    color: var(--bg-white);
+    border-radius: 50%;
+    padding: var(--space-xs) 6px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    margin-left: var(--space-sm);
+}
 
-        /* ============================================================================
+/* ============================================================================
            SIDEBAR COMPONENTS
            ============================================================================ */
-        /* User Info Card */
-        .user-info {
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
-            color: var(--bg-white);
-            padding: var(--space-lg);
-            border-radius: var(--radius-lg);
-            text-align: center;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-            box-shadow: var(--shadow-md);
-        }
+/* User Info Card */
+.user-info {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+    color: var(--bg-white);
+    padding: var(--space-lg);
+    border-radius: var(--radius-lg);
+    text-align: center;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-md);
+}
 
-        .user-avatar {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.2);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto var(--space-md);
-            font-size: 2.5rem;
-            border: 3px solid rgba(255, 255, 255, 0.3);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-        }
+.user-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto var(--space-md);
+    font-size: 2.5rem;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
 
-        .user-avatar img {
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-            object-fit: cover;
-        }
+.user-avatar img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+}
 
-        .user-name {
-            font-size: 1.25rem;
-            font-weight: 700;
-            margin-bottom: var(--space-xs);
-        }
+.user-name {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: var(--space-xs);
+}
 
-        .user-email {
-            font-size: 0.85rem;
-            opacity: 0.95;
-            margin-bottom: var(--space-sm);
-            font-weight: 500;
-        }
+.user-email {
+    font-size: 0.85rem;
+    opacity: 0.95;
+    margin-bottom: var(--space-sm);
+    font-weight: 500;
+}
 
-        .user-ref {
-            background: rgba(255, 255, 255, 0.2);
-            padding: var(--space-xs) var(--space-md);
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            display: inline-block;
-        }
+.user-ref {
+    background: rgba(255, 255, 255, 0.2);
+    padding: var(--space-xs) var(--space-md);
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: inline-block;
+}
 
-        /* Quick Stats */
-        .quick-stats {
-            background: var(--bg-white);
-            border-radius: var(--radius-lg);
-            padding: var(--space-md);
-            text-align: center;
-            transition: all 0.3s ease;
-            cursor: default;
-        }
+/* Quick Stats */
+.quick-stats {
+    background: var(--bg-white);
+    border-radius: var(--radius-lg);
+    padding: var(--space-md);
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: default;
+}
 
-        .quick-stats:hover {
-            box-shadow: var(--shadow-hover);
-            transform: translateY(-2px);
-        }
+.quick-stats:hover {
+    box-shadow: var(--shadow-hover);
+    transform: translateY(-2px);
+}
 
-        .quick-stats.clickable {
-            cursor: pointer;
-        }
+.quick-stats.clickable {
+    cursor: pointer;
+}
 
-        .icon-area {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: var(--space-sm);
-            margin-bottom: var(--space-sm);
-        }
+.icon-area {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-sm);
+}
 
-        .icon-area i {
-            font-size: 1.5rem;
-            color: var(--primary-color);
-        }
+.icon-area i {
+    font-size: 1.5rem;
+    color: var(--primary-color);
+}
 
-        .stat-number {
-            font-size: 2.5rem;
-            font-weight: 900;
-            color: var(--primary-color);
-            margin: var(--space-sm) 0;
-            line-height: 1;
-        }
+.stat-number {
+    font-size: 2.5rem;
+    font-weight: 900;
+    color: var(--primary-color);
+    margin: var(--space-sm) 0;
+    line-height: 1;
+}
 
-        .stat-label {
-            color: var(--text-color);
-            font-size: 0.9rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
+.stat-label {
+    color: var(--text-color);
+    font-size: 0.9rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
 
-        .stat-desc {
-            color: var(--text-light);
-            font-size: 0.8rem;
-            margin-top: var(--space-xs);
-            font-weight: 500;
-        }
+.stat-desc {
+    color: var(--text-light);
+    font-size: 0.8rem;
+    margin-top: var(--space-xs);
+    font-weight: 500;
+}
 
-        /* Logout Button */
-        .logout-btn {
-            background: var(--danger-color);
-            color: var(--bg-white);
-            padding: 12px var(--space-md);
-            border: none;
-            border-radius: var(--radius);
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.25s ease;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: var(--space-sm);
-            width: 100%;
-            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.15);
-        }
+/* Logout Button */
+.logout-btn {
+    background: var(--danger-color);
+    color: var(--bg-white);
+    padding: 12px var(--space-md);
+    border: none;
+    border-radius: var(--radius);
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-sm);
+    width: 100%;
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.15);
+}
 
-        .logout-btn:hover {
-            background: #b91c1c;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(220, 38, 38, 0.25);
-        }
+.logout-btn:hover {
+    background: #b91c1c;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(220, 38, 38, 0.25);
+}
 
-        /* ============================================================================
+/* ============================================================================
            NOTIFICATIONS DROPDOWN
            ============================================================================ */
-        .notif-dropdown-wrapper {
-            position: relative;
-        }
+.notif-dropdown-wrapper {
+    position: relative;
+}
 
-        .notif-dropdown {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            width: 340px;
-            background: var(--bg-white);
-            border-radius: var(--radius-lg);
-            box-shadow: var(--shadow-lg);
-            border: 1px solid var(--border-color);
-            transform-origin: top right;
-            transform: scale(0.98) translateY(-8px);
-            opacity: 0;
-            pointer-events: none;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            z-index: 50;
-            overflow: hidden;
-        }
+.notif-dropdown {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 340px;
+    background: var(--bg-white);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--border-color);
+    transform-origin: top right;
+    transform: scale(0.98) translateY(-8px);
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 50;
+    overflow: hidden;
+}
 
-        .notif-dropdown.show {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-            pointer-events: auto;
-            animation: slideInDown 0.25s ease-out;
-        }
+.notif-dropdown.show {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    pointer-events: auto;
+    animation: slideInDown 0.25s ease-out;
+}
 
-        .notif-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: var(--space-md);
-            border-bottom: 1px solid var(--border-color);
-            background: var(--bg-color);
-        }
+.notif-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-md);
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-color);
+}
 
-        .notif-header h4 {
-            font-size: 0.95rem;
-            font-weight: 700;
-            color: var(--text-color);
-        }
+.notif-header h4 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-color);
+}
 
-        .notif-list {
-            max-height: 300px;
-            overflow-y: auto;
-        }
+.notif-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
 
-        .notif-item {
-            display: grid;
-            grid-template-columns: 28px 1fr auto;
-            gap: var(--space-md);
-            padding: var(--space-md);
-            border-bottom: 1px solid var(--gray-100);
-            transition: background-color 0.2s ease;
-        }
+.notif-item {
+    display: grid;
+    grid-template-columns: 28px 1fr auto;
+    gap: var(--space-md);
+    padding: var(--space-md);
+    border-bottom: 1px solid var(--gray-100);
+    transition: background-color 0.2s ease;
+}
 
-        .notif-item:hover {
-            background: var(--bg-color);
-        }
+.notif-item:hover {
+    background: var(--bg-color);
+}
 
-        .notif-item:last-child {
-            border-bottom: none;
-        }
+.notif-item:last-child {
+    border-bottom: none;
+}
 
-        .notif-item.unread {
-            background: var(--bg-color);
-            font-weight: 600;
-        }
+.notif-item.unread {
+    background: var(--bg-color);
+    font-weight: 600;
+}
 
-        .notif-icon {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 28px;
-            height: 28px;
-            border-radius: var(--radius-sm);
-            font-size: 0.75rem;
-            flex-shrink: 0;
-        }
+.notif-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    flex-shrink: 0;
+}
 
-        .notif-icon.deadline {
-            background: #fef3c7;
-            color: #d97706;
-        }
+.notif-icon.deadline {
+    background: #fef3c7;
+    color: #d97706;
+}
 
-        .notif-icon.message {
-            background: #dbeafe;
-            color: #0c4a6e;
-        }
+.notif-icon.message {
+    background: #dbeafe;
+    color: #0c4a6e;
+}
 
-        .notif-icon.document {
-            background: #cffafe;
-            color: #0369a1;
-        }
+.notif-icon.document {
+    background: #cffafe;
+    color: #0369a1;
+}
 
-        .notif-icon.system {
-            background: #dcfce7;
-            color: #166534;
-        }
+.notif-icon.system {
+    background: #dcfce7;
+    color: #166534;
+}
 
-        .notif-title {
-            font-weight: 700;
-            color: var(--text-color);
-            font-size: 0.95rem;
-            line-height: 1.4;
-        }
+.notif-title {
+    font-weight: 700;
+    color: var(--text-color);
+    font-size: 0.95rem;
+    line-height: 1.4;
+}
 
-        .notif-desc {
-            color: var(--text-light);
-            font-size: 0.85rem;
-            margin-top: 4px;
-            line-height: 1.4;
-        }
+.notif-desc {
+    color: var(--text-light);
+    font-size: 0.85rem;
+    margin-top: 4px;
+    line-height: 1.4;
+}
 
-        .notif-meta {
-            display: flex;
-            align-items: center;
-            gap: var(--space-sm);
-            font-size: 0.8rem;
-            color: var(--gray-500);
-            margin-top: 6px;
-        }
+.notif-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    font-size: 0.8rem;
+    color: var(--gray-500);
+    margin-top: 6px;
+}
 
-        .notif-action a {
-            font-size: 0.8rem;
-            color: var(--primary-color);
-            text-decoration: none;
-            font-weight: 700;
-            transition: color 0.2s ease;
-        }
+.notif-action a {
+    font-size: 0.8rem;
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 700;
+    transition: color 0.2s ease;
+}
 
-        .notif-action a:hover {
-            color: var(--accent-color);
-            text-decoration: underline;
-        }
+.notif-action a:hover {
+    color: var(--accent-color);
+    text-decoration: underline;
+}
 
-        /* ============================================================================
+/* ============================================================================
            RESPONSIVE DESIGN - Tablet (481px–900px)
            ============================================================================ */
-        @media (max-width: 900px) {
-            :root {
-                font-size: 15px;
-            }
+@media (max-width: 900px) {
+    :root {
+        font-size: 15px;
+    }
 
-            .dashboard-container {
-                grid-template-columns: 1fr;
-                padding: var(--space-md);
-                gap: var(--space-md);
-            }
+    .dashboard-container {
+        grid-template-columns: 1fr;
+        padding: var(--space-md);
+        gap: var(--space-md);
+    }
 
-            .card {
-                padding: var(--space-md);
-            }
+    .card {
+        padding: var(--space-md);
+    }
 
-            .welcome-section h1 {
-                font-size: 1.75rem;
-            }
+    .welcome-section h1 {
+        font-size: 1.75rem;
+    }
 
-            .progress-percentage {
-                font-size: 3rem;
-            }
+    .progress-percentage {
+        font-size: 3rem;
+    }
 
-            .action-buttons {
-                grid-template-columns: repeat(2, 1fr);
-            }
+    .action-buttons {
+        grid-template-columns: repeat(2, 1fr);
+    }
 
-            .step {
-                flex: 0 0 calc(50% - 8px);
-            }
+    .step {
+        flex: 0 0 calc(50% - 8px);
+    }
 
-            .progress-steps {
-                margin: 32px 0;
-            }
+    .progress-steps {
+        margin: 32px 0;
+    }
 
-            .progress-steps::before {
-                display: none;
-            }
+    .progress-steps::before {
+        display: none;
+    }
 
-            .step-icon {
-                width: 45px;
-                height: 45px;
-                font-size: 1rem;
-            }
+    .step-icon {
+        width: 45px;
+        height: 45px;
+        font-size: 1rem;
+    }
 
-            .progress-container {
-                height: 6px;
-            }
-        }
+    .progress-container {
+        height: 6px;
+    }
+}
 
-        /* ============================================================================
+/* ============================================================================
            RESPONSIVE DESIGN - Mobile (≤480px)
            ============================================================================ */
-        @media (max-width: 480px) {
-            :root {
-                font-size: 14px;
-            }
+@media (max-width: 480px) {
+    :root {
+        font-size: 14px;
+    }
 
-            .dashboard-container {
-                padding: var(--space-sm);
-                gap: var(--space-sm);
-            }
+    .dashboard-container {
+        padding: var(--space-sm);
+        gap: var(--space-sm);
+    }
 
-            .sidebar {
-                gap: var(--space-sm);
-            }
+    .sidebar {
+        gap: var(--space-sm);
+    }
 
-            .card {
-                padding: var(--space-md);
-                border-radius: var(--radius);
-            }
+    .card {
+        padding: var(--space-md);
+        border-radius: var(--radius);
+    }
 
-            .welcome-section h1 {
-                font-size: 1.5rem;
-                margin-bottom: var(--space-xs);
-            }
+    .welcome-section h1 {
+        font-size: 1.5rem;
+        margin-bottom: var(--space-xs);
+    }
 
-            .welcome-section p {
-                font-size: 0.95rem;
-            }
+    .welcome-section p {
+        font-size: 0.95rem;
+    }
 
-            .progress-percentage {
-                font-size: 2.5rem;
-            }
+    .progress-percentage {
+        font-size: 2.5rem;
+    }
 
-            .progress-label {
-                font-size: 0.85rem;
-            }
+    .progress-label {
+        font-size: 0.85rem;
+    }
 
-            .action-buttons {
-                grid-template-columns: 1fr;
-                gap: var(--space-sm);
-            }
+    .action-buttons {
+        grid-template-columns: 1fr;
+        gap: var(--space-sm);
+    }
 
-            .btn {
-                padding: 10px var(--space-md);
-                font-size: 0.9rem;
-            }
+    .btn {
+        padding: 10px var(--space-md);
+        font-size: 0.9rem;
+    }
 
-            .btn i {
-                font-size: 0.9rem;
-            }
+    .btn i {
+        font-size: 0.9rem;
+    }
 
-            .step {
-                flex: 0 0 calc(50% - 4px);
-            }
+    .step {
+        flex: 0 0 calc(50% - 4px);
+    }
 
-            .progress-steps {
-                margin: 24px 0;
-            }
+    .progress-steps {
+        margin: 24px 0;
+    }
 
-            .step-icon {
-                width: 40px;
-                height: 40px;
-                margin: 0 auto var(--space-sm);
-                font-size: 0.9rem;
-                border-width: 2px;
-            }
+    .step-icon {
+        width: 40px;
+        height: 40px;
+        margin: 0 auto var(--space-sm);
+        font-size: 0.9rem;
+        border-width: 2px;
+    }
 
-            .step-label {
-                font-size: 0.8rem;
-                margin-top: var(--space-xs);
-            }
+    .step-label {
+        font-size: 0.8rem;
+        margin-top: var(--space-xs);
+    }
 
-            .user-avatar {
-                width: 70px;
-                height: 70px;
-                font-size: 2rem;
-            }
+    .user-avatar {
+        width: 70px;
+        height: 70px;
+        font-size: 2rem;
+    }
 
-            .user-name {
-                font-size: 1.1rem;
-            }
+    .user-name {
+        font-size: 1.1rem;
+    }
 
-            .stat-number {
-                font-size: 2rem;
-            }
+    .stat-number {
+        font-size: 2rem;
+    }
 
-            .notif-dropdown {
-                width: calc(100vw - 32px);
-                right: 16px;
-            }
-        }
+    .notif-dropdown {
+        width: calc(100vw - 32px);
+        right: 16px;
+    }
+}
 
-        /* ============================================================================
+/* ============================================================================
            UTILITY CLASSES & FIXES
            ============================================================================ */
-        /* Pointer events fix for interactive elements */
-        a[href="edubridge_wizard.php"] {
-            pointer-events: auto !important;
-            cursor: pointer !important;
-            position: relative !important;
-            z-index: 10 !important;
-        }
+/* Pointer events fix for interactive elements */
+a[href="edubridge_wizard.php"] {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+    position: relative !important;
+    z-index: 10 !important;
+}
 
-        .action-buttons {
-            pointer-events: auto !important;
-            position: relative !important;
-            z-index: 10 !important;
-        }
+.action-buttons {
+    pointer-events: auto !important;
+    position: relative !important;
+    z-index: 10 !important;
+}
 
-        .card {
-            pointer-events: auto !important;
-        }
+.card {
+    pointer-events: auto !important;
+}
 
-        /* Scrollbar Styling */
-        .notif-list::-webkit-scrollbar {
-            width: 6px;
-        }
+/* Scrollbar Styling */
+.notif-list::-webkit-scrollbar {
+    width: 6px;
+}
 
-        .notif-list::-webkit-scrollbar-track {
-            background: var(--bg-color);
-        }
+.notif-list::-webkit-scrollbar-track {
+    background: var(--bg-color);
+}
 
-        .notif-list::-webkit-scrollbar-thumb {
-            background: var(--gray-300);
-            border-radius: 3px;
-        }
+.notif-list::-webkit-scrollbar-thumb {
+    background: var(--gray-300);
+    border-radius: 3px;
+}
 
-        .notif-list::-webkit-scrollbar-thumb:hover {
-            background: var(--gray-400);
-        }
-    </style>
-</head>
-<body>
-    <div class="dashboard-container">
-        <div class="main-content">
-            <!-- Welcome Section -->
-            <div class="card welcome-section">
-                <h1>Welcome back, <?php echo htmlspecialchars($username); ?>! 👋</h1>
-                <p>Your journey to university starts here. Let's make it amazing! ✨</p>
-            </div>
+.notif-list::-webkit-scrollbar-thumb:hover {
+    background: var(--gray-400);
+}
 
-            <!-- Progress Section -->
-            <div class="card progress-section">
-                <div class="status-badge"><?php echo strtoupper(htmlspecialchars($application_status)); ?></div>
-                <div class="progress-percentage">20%</div>
-                <div class="progress-label">Complete</div>
-                
-                <div class="progress-container">
-                    <div class="progress-bar"></div>
-                </div>
-                
-                <p>You're on fire! Keep chasing those dreams!</p>
-                <p class="motivator-author">- EduBridge Motivator</p>
-            </div>
+</style></head><body><div class="dashboard-container"><div class="main-content">< !-- Welcome Section --><div class="card welcome-section"><h1>Welcome back,
+<?php echo htmlspecialchars($username);
+?> ! 👋</h1><p>Your journey to university starts here. Let's make it amazing! ✨</p>
+ </div>< !-- Progress Section --><div class="card progress-section"><div class="status-badge"><?php echo strtoupper(htmlspecialchars($application_status));
+?></div><div class="progress-percentage">20%</div><div class="progress-label">Complete</div><div class="progress-container"><div class="progress-bar"></div></div><p>You're on fire! Keep chasing those dreams!</p>
+ <p class="motivator-author">- EduBridge Motivator</p></div>< !-- Progress Steps --><div class="card"><div class="progress-steps-container"><div class="progress-steps"><div class="step completed"><div class="step-icon">✓</div><div class="step-label">First Launch</div></div><div class="step locked"><div class="step-icon">🔒</div><div class="step-label">Paper Master</div></div><div class="step locked"><div class="step-icon">🔒</div><div class="step-label">On My Way</div></div><div class="step completed"><div class="step-icon">✓</div><div class="step-label">All About You</div></div></div></div>< !-- Action Buttons --><div class="action-buttons"><a href="edubridge_wizard.php" class="btn btn-primary"><i class="fas fa-rocket"></i>Apply Now </a><a href="<?php echo htmlspecialchars($upload_docs_url); ?>" class="btn btn-secondary"><i class="fas fa-upload"></i>Upload Documents </a><a href="find-application.php" class="btn btn-secondary"><i class="fas fa-search"></i>Find Application </a><a href="track-progress.php" class="btn btn-secondary"><i class="fas fa-chart-line"></i>Track Progress </a></div></div></div>< !-- Sidebar --><div class="sidebar">< !-- User Info Card --><div class="card user-info"><div class="user-avatar"><i class="fas fa-user-graduate"></i></div><div class="user-name"><?php echo htmlspecialchars($username);
+?></div><div class="user-email"><?php echo htmlspecialchars($email);
+?></div><div class="user-ref">Ref: <?php echo htmlspecialchars($reference_number);
+?></div></div>< !-- Quick Stats --><div class="card quick-stats clickable" id="notifications-card" role="button" aria-label="Open notifications"><div class="icon-area"><i id="notifCardIcon" class="fas fa-bell text-warning" aria-label="Preview notifications"></i><div class="stat-number"><span id="notif-unread">0</span></div></div><div class="stat-label">Notifications</div><div class="stat-desc">Unread messages and deadlines</div><div class="notif-dropdown-wrapper" id="notifDropdownWrapper"><div class="notif-dropdown" id="notifDropdown" aria-label="Notifications quick preview"><div class="notif-header"><h4>Notifications</h4><a href="#" id="notifDropdownMarkAll">Mark all as read</a></div><div class="notif-list" id="notifList"></div></div></div></div><div class="card quick-stats"><div class="stat-number">4</div><div class="stat-label">Documents Required</div><div class="stat-desc">Pending upload</div></div><div class="card quick-stats"><div class="stat-number">1</div><div class="stat-label">Applications</div><div class="stat-desc">In progress</div></div><div class="card" id="quick-links"><h3 style="margin-bottom:12px;color:var(--gray-800)">Quick Links</h3><div class="action-buttons" style="grid-template-columns:1fr; gap:10px;"><a href="student-account.php" class="btn btn-secondary"><i class="fas fa-user-cog"></i>Edit Profile</a><a href="edubridge_wizard.php" class="btn btn-primary"><i class="fas fa-rocket"></i>Apply Now</a><a href="application_status.php" class="btn btn-secondary"><i class="fas fa-clipboard-list"></i>Check Application Status</a><a href="<?php echo htmlspecialchars($upload_docs_url); ?>" class="btn btn-secondary"><i class="fas fa-upload"></i>Upload Documents</a></div></div>< !-- Logout Button --><a href="auth.php?action=logout" class="logout-btn"><i class="fas fa-sign-out-alt"></i>Logout </a></div></div><script> // SIMPLE DASHBOARD JAVASCRIPT - REPLACE YOUR CURRENT JS WITH THIS 
 
-            <!-- Progress Steps -->
-            <div class="card">
-                <div class="progress-steps-container">
-                    <div class="progress-steps">
-                        <div class="step completed">
-                            <div class="step-icon">✓</div>
-                            <div class="step-label">First Launch</div>
-                        </div>
-                        <div class="step locked">
-                            <div class="step-icon">🔒</div>
-                            <div class="step-label">Paper Master</div>
-                        </div>
-                        <div class="step locked">
-                            <div class="step-icon">🔒</div>
-                            <div class="step-label">On My Way</div>
-                        </div>
-                        <div class="step completed">
-                            <div class="step-icon">✓</div>
-                            <div class="step-label">All About You</div>
-                        </div>
-                    </div>
-                </div>
+document.addEventListener('DOMContentLoaded', function() {
+        console.log('🚀 Dashboard loaded - applying emergency fixes');
 
-                <!-- Action Buttons -->
-                <div class="action-buttons">
-                    <a href="edubridge_wizard.php" class="btn btn-primary">
-                        <i class="fas fa-rocket"></i>
-                        Apply Now
-                    </a>
-                    <a href="<?php echo htmlspecialchars($upload_docs_url); ?>" class="btn btn-secondary">
-                        <i class="fas fa-upload"></i>
-                        Upload Documents
-                    </a>
-                    <a href="find-application.php" class="btn btn-secondary">
-                        <i class="fas fa-search"></i>
-                        Find Application
-                    </a>
-                    <a href="track-progress.php" class="btn btn-secondary">
-                        <i class="fas fa-chart-line"></i>
-                        Track Progress
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        <!-- Sidebar -->
-        <div class="sidebar">
-            <!-- User Info Card -->
-            <div class="card user-info">
-                <div class="user-avatar">
-                    <i class="fas fa-user-graduate"></i>
-                </div>
-                <div class="user-name"><?php echo htmlspecialchars($username); ?></div>
-                <div class="user-email"><?php echo htmlspecialchars($email); ?></div>
-                <div class="user-ref">Ref: <?php echo htmlspecialchars($reference_number); ?></div>
-            </div>
-
-            <!-- Quick Stats -->
-            <div class="card quick-stats clickable" id="notifications-card" role="button" aria-label="Open notifications">
-                <div class="icon-area">
-                    <i id="notifCardIcon" class="fas fa-bell text-warning" aria-label="Preview notifications"></i>
-                    <div class="stat-number"><span id="notif-unread">0</span></div>
-                </div>
-                <div class="stat-label">Notifications</div>
-                <div class="stat-desc">Unread messages and deadlines</div>
-                <div class="notif-dropdown-wrapper" id="notifDropdownWrapper">
-                    <div class="notif-dropdown" id="notifDropdown" aria-label="Notifications quick preview">
-                        <div class="notif-header">
-                            <h4>Notifications</h4>
-                            <a href="#" id="notifDropdownMarkAll">Mark all as read</a>
-                        </div>
-                        <div class="notif-list" id="notifList"></div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="card quick-stats">
-                <div class="stat-number">4</div>
-                <div class="stat-label">Documents Required</div>
-                <div class="stat-desc">Pending upload</div>
-            </div>
-
-            <div class="card quick-stats">
-                <div class="stat-number">1</div>
-                <div class="stat-label">Applications</div>
-                <div class="stat-desc">In progress</div>
-            </div>
-
-            <div class="card" id="quick-links">
-                <h3 style="margin-bottom:12px;color:var(--gray-800)">Quick Links</h3>
-                <div class="action-buttons" style="grid-template-columns:1fr; gap:10px;">
-                    <a href="student-account.php" class="btn btn-secondary"><i class="fas fa-user-cog"></i> Edit Profile</a>
-                    <a href="edubridge_wizard.php" class="btn btn-primary"><i class="fas fa-rocket"></i> Apply Now</a>
-                    <a href="application_status.php" class="btn btn-secondary"><i class="fas fa-clipboard-list"></i> Check Application Status</a>
-                    <a href="<?php echo htmlspecialchars($upload_docs_url); ?>" class="btn btn-secondary"><i class="fas fa-upload"></i> Upload Documents</a>
-                </div>
-            </div>
-
-            <!-- Logout Button -->
-            <a href="auth.php?action=logout" class="logout-btn">
-                <i class="fas fa-sign-out-alt"></i>
-                Logout
-            </a>
-        </div>
-    </div>
-
-    <script>
-    // SIMPLE DASHBOARD JAVASCRIPT - REPLACE YOUR CURRENT JS WITH THIS 
-    document.addEventListener('DOMContentLoaded', function() { 
-        console.log('🚀 Dashboard loaded - applying emergency fixes'); 
-        
         // Apply Now button - FORCE navigation 
-        const applyNowButton = document.querySelector('a[href="edubridge_wizard.php"]'); 
-        if (applyNowButton) { 
-            console.log('✅ Apply Now button found'); 
-            const newButton = document.createElement('a'); 
-            newButton.href = 'edubridge_wizard.php'; 
-            newButton.className = 'btn btn-primary'; 
-            newButton.innerHTML = '<i class="fas fa-rocket"></i> Apply Now'; 
-            newButton.style.pointerEvents = 'auto'; 
-            newButton.style.cursor = 'pointer'; 
-            newButton.style.zIndex = '10000'; 
-            newButton.style.position = 'relative'; 
-            applyNowButton.parentNode.replaceChild(newButton, applyNowButton); 
-            newButton.addEventListener('click', function(e) { 
-                console.log('🎯 Apply Now clicked - FORCING navigation'); 
-                window.location.href = 'edubridge_wizard.php'; 
-                return false; 
-            }); 
-            console.log('✅ Apply Now button replaced with working version'); 
-        } else {
+        const applyNowButton=document.querySelector('a[href="edubridge_wizard.php"]');
+
+        if (applyNowButton) {
+            console.log('✅ Apply Now button found');
+            const newButton=document.createElement('a');
+            newButton.href='edubridge_wizard.php';
+            newButton.className='btn btn-primary';
+            newButton.innerHTML='<i class="fas fa-rocket"></i> Apply Now';
+            newButton.style.pointerEvents='auto';
+            newButton.style.cursor='pointer';
+            newButton.style.zIndex='10000';
+            newButton.style.position='relative';
+            applyNowButton.parentNode.replaceChild(newButton, applyNowButton);
+
+            newButton.addEventListener('click', function(e) {
+                    console.log('🎯 Apply Now clicked - FORCING navigation');
+                    window.location.href='edubridge_wizard.php';
+                    return false;
+                });
+            console.log('✅ Apply Now button replaced with working version');
+        }
+
+        else {
             console.warn('⚠️ Apply Now button not found');
         }
-        
+
         // Debug what's happening with the button 
-        const btn = document.querySelector('a[href="edubridge_wizard.php"]');
+        const btn=document.querySelector('a[href="edubridge_wizard.php"]');
+
         if (btn) {
             console.log('Button styles:', window.getComputedStyle(btn));
             console.log('Pointer events:', window.getComputedStyle(btn).pointerEvents);
@@ -1155,126 +1070,190 @@ try {
             console.log('Z-index:', window.getComputedStyle(btn).zIndex);
         }
     });
-    </script>
-    <script>
-    // Notifications preview + navigation
-    document.addEventListener('DOMContentLoaded', function() {
-        const card = document.getElementById('notifications-card');
-        const icon = document.getElementById('notifCardIcon');
-        const dropdown = document.getElementById('notifDropdown');
-        const dropdownWrapper = document.getElementById('notifDropdownWrapper');
-        const listEl = document.getElementById('notifList');
-        const markAllBtn = document.getElementById('notifDropdownMarkAll');
-        const unreadEl = document.getElementById('notif-unread');
+</script><script> // Notifications preview + navigation
 
-        const LS_KEY = 'edubridge_notifications_v1';
+document.addEventListener('DOMContentLoaded', function() {
+        const card=document.getElementById('notifications-card');
+        const icon=document.getElementById('notifCardIcon');
+        const dropdown=document.getElementById('notifDropdown');
+        const dropdownWrapper=document.getElementById('notifDropdownWrapper');
+        const listEl=document.getElementById('notifList');
+        const markAllBtn=document.getElementById('notifDropdownMarkAll');
+        const unreadEl=document.getElementById('notif-unread');
+
+        const LS_KEY='edubridge_notifications_v1';
 
         function seedData() {
-            const existing = JSON.parse(localStorage.getItem(LS_KEY) || '[]');
+            const existing=JSON.parse(localStorage.getItem(LS_KEY) || '[]');
             if (existing.length) return existing;
-            const now = Date.now();
-            const samples = [
-                { id: 'n1', type: 'deadline', title: 'Upcoming submission', desc: 'Application deadline in 3 days.', ts: now - 60*1000, read: false, priority: 'high' },
-                { id: 'n2', type: 'message', title: 'Welcome to EduBridge SA', desc: 'We’re excited to guide you.', ts: now - 2*60*60*1000, read: false, priority: 'low' },
-                { id: 'n3', type: 'document', title: 'Document request', desc: 'Proof of residence required.', ts: now - 24*60*60*1000, read: true, priority: 'medium' },
-                { id: 'n4', type: 'system', title: 'Dark mode update', desc: 'New theme options are available.', ts: now - 3*24*60*60*1000, read: true, priority: 'low' }
-            ];
-            localStorage.setItem(LS_KEY, JSON.stringify(samples));
-            return samples;
-        }
+            const now=Date.now();
 
-        function load() { return JSON.parse(localStorage.getItem(LS_KEY) || '[]'); }
-        function save(items) { localStorage.setItem(LS_KEY, JSON.stringify(items)); }
-        function relTime(ts) {
-            const s = Math.floor((Date.now() - ts)/1000);
-            if (s < 60) return `${s}s ago`; const m = Math.floor(s/60);
-            if (m < 60) return `${m}m ago`; const h = Math.floor(m/60);
-            if (h < 24) return `${h}h ago`; const d = Math.floor(h/24);
-            return `${d}d ago`;
-        }
-
-        function render() {
-            const items = load();
-            const unread = items.filter(i => !i.read).length;
-            unreadEl.textContent = unread;
-            listEl.innerHTML = items.map(i => {
-                const iconClass = i.type === 'deadline' ? 'deadline' : i.type === 'message' ? 'message' : i.type === 'document' ? 'document' : 'system';
-                const actionText = i.read ? 'Mark unread' : 'Mark read';
-                return `
-                <div class="notif-item ${i.read ? '' : 'unread'}" data-id="${i.id}">
-                    <div class="notif-icon ${iconClass}"><i class="fas fa-${i.type === 'deadline' ? 'calendar-alt' : i.type === 'message' ? 'envelope' : i.type === 'document' ? 'file-alt' : 'cog'}"></i></div>
-                    <div>
-                        <div class="notif-title">${i.title}</div>
-                        <div class="notif-desc">${i.desc}</div>
-                        <div class="notif-meta"><span>${relTime(i.ts)}</span><span>${i.priority}</span></div>
-                    </div>
-                    <div class="notif-action"><a href="#" data-act="toggle">${actionText}</a></div>
-                </div>`;
-            }).join('');
-        }
-
-        function toggleItem(id) {
-            const items = load();
-            const idx = items.findIndex(n => n.id === id);
-            if (idx !== -1) {
-                items[idx].read = !items[idx].read;
-                save(items); render();
+            const samples=[ {
+                id: 'n1', type: 'deadline', title: 'Upcoming submission', desc: 'Application deadline in 3 days.', ts: now - 60*1000, read: false, priority: 'high'
             }
+
+            ,
+            {
+            id: 'n2', type: 'message', title: 'Welcome to EduBridge SA', desc: 'We’re excited to guide you.', ts: now - 2*60*60*1000, read: false, priority: 'low'
         }
 
-        // Seed and initial render
-        seedData(); render();
+        ,
+        {
+        id: 'n3', type: 'document', title: 'Document request', desc: 'Proof of residence required.', ts: now - 24*60*60*1000, read: true, priority: 'medium'
+    }
 
-        // Interactions
-        listEl.addEventListener('click', (e) => {
-            const act = e.target.getAttribute('data-act');
-            if (act === 'toggle') {
-                e.preventDefault();
-                const id = e.target.closest('.notif-item').getAttribute('data-id');
-                toggleItem(id);
+    ,
+    {
+    id: 'n4', type: 'system', title: 'Dark mode update', desc: 'New theme options are available.', ts: now - 3*24*60*60*1000, read: true, priority: 'low'
+}
+
+];
+localStorage.setItem(LS_KEY, JSON.stringify(samples));
+return samples;
+}
+
+function load() {
+    return JSON.parse(localStorage.getItem(LS_KEY) || '[]');
+}
+
+function save(items) {
+    localStorage.setItem(LS_KEY, JSON.stringify(items));
+}
+
+function relTime(ts) {
+    const s=Math.floor((Date.now() - ts)/1000);
+
+    if (s < 60) return `$ {
+        s
+    }
+
+    s ago`; const m=Math.floor(s/60);
+
+    if (m < 60) return `$ {
+        m
+    }
+
+    m ago`; const h=Math.floor(m/60);
+
+    if (h < 24) return `$ {
+        h
+    }
+
+    h ago`; const d=Math.floor(h/24);
+
+    return `$ {
+        d
+    }
+
+    d ago`;
+}
+
+function render() {
+    const items=load();
+    const unread=items.filter(i=> !i.read).length;
+    unreadEl.textContent=unread;
+
+    listEl.innerHTML=items.map(i=> {
+            const iconClass=i.type==='deadline' ? 'deadline' : i.type==='message' ? 'message' : i.type==='document' ? 'document' : 'system';
+            const actionText=i.read ? 'Mark unread' : 'Mark read';
+
+            return ` <div class="notif-item ${i.read ? '' : 'unread'}" data-id="${i.id}" > <div class="notif-icon ${iconClass}" ><i class="fas fa-${i.type === 'deadline' ? 'calendar-alt' : i.type === 'message' ? 'envelope' : i.type === 'document' ? 'file-alt' : 'cog'}" ></i></div> <div> <div class="notif-title" >$ {
+                i.title
             }
-        });
 
-        markAllBtn.addEventListener('click', (e) => {
+            </div> <div class="notif-desc" >$ {
+                i.desc
+            }
+
+            </div> <div class="notif-meta" ><span>$ {
+                relTime(i.ts)
+            }
+
+            </span><span>$ {
+                i.priority
+            }
+
+            </span></div> </div> <div class="notif-action" ><a href="#" data-act="toggle" >$ {
+                actionText
+            }
+
+            </a></div> </div>`;
+        }).join('');
+}
+
+function toggleItem(id) {
+    const items=load();
+    const idx=items.findIndex(n=> n.id===id);
+
+    if (idx !==-1) {
+        items[idx].read= !items[idx].read;
+        save(items); render();
+    }
+}
+
+// Seed and initial render
+seedData(); render();
+
+// Interactions
+listEl.addEventListener('click', (e)=> {
+        const act=e.target.getAttribute('data-act');
+
+        if (act==='toggle') {
             e.preventDefault();
-            const items = load().map(i => ({...i, read: true}));
-            save(items); render();
-        });
-
-        function openDropdown(){ dropdown.classList.add('show'); }
-        function closeDropdown(){ dropdown.classList.remove('show'); }
-
-        icon.addEventListener('click', (e) => {
-            e.stopPropagation(); e.preventDefault();
-            if (dropdown.classList.contains('show')) closeDropdown(); else openDropdown();
-        });
-
-        let hoverOpenTimer=null, hoverCloseTimer=null;
-        card.addEventListener('mouseenter', () => {
-            clearTimeout(hoverCloseTimer);
-            hoverOpenTimer = setTimeout(() => openDropdown(), 250);
-        });
-        card.addEventListener('mouseleave', () => {
-            clearTimeout(hoverOpenTimer);
-            hoverCloseTimer = setTimeout(() => closeDropdown(), 250);
-        });
-
-        // Card click navigates to full notifications page
-        card.addEventListener('click', (e) => {
-            if (e.target.closest('#notifCardIcon')) return;
-            window.location.href = 'notifications.html';
-        });
-
-        // Accessibility
-        card.addEventListener('keydown', (e) => {
-            if ((e.key === 'Enter' || e.key === ' ') && !e.altKey) {
-                e.preventDefault(); window.location.href = 'notifications.html';
-            } else if (e.key === 'Enter' && e.altKey) {
-                e.preventDefault(); if (dropdown.classList.contains('show')) closeDropdown(); else openDropdown();
-            }
-        });
+            const id=e.target.closest('.notif-item').getAttribute('data-id');
+            toggleItem(id);
+        }
     });
-    </script>
-    <!-- Emergency link removed -->
-</body>
-</html>
+
+markAllBtn.addEventListener('click', (e)=> {
+        e.preventDefault();
+
+        const items=load().map(i=> ({
+                ...i, read: true
+            }));
+    save(items); render();
+});
+
+function openDropdown() {
+    dropdown.classList.add('show');
+}
+
+function closeDropdown() {
+    dropdown.classList.remove('show');
+}
+
+icon.addEventListener('click', (e)=> {
+        e.stopPropagation(); e.preventDefault();
+        if (dropdown.classList.contains('show')) closeDropdown(); else openDropdown();
+    });
+
+let hoverOpenTimer=null, hoverCloseTimer=null;
+
+card.addEventListener('mouseenter', ()=> {
+        clearTimeout(hoverCloseTimer);
+        hoverOpenTimer=setTimeout(()=> openDropdown(), 250);
+    });
+
+card.addEventListener('mouseleave', ()=> {
+        clearTimeout(hoverOpenTimer);
+        hoverCloseTimer=setTimeout(()=> closeDropdown(), 250);
+    });
+
+// Card click navigates to full notifications page
+card.addEventListener('click', (e)=> {
+        if (e.target.closest('#notifCardIcon')) return;
+        window.location.href='notifications.html';
+    });
+
+// Accessibility
+card.addEventListener('keydown', (e)=> {
+        if ((e.key==='Enter' || e.key===' ') && !e.altKey) {
+            e.preventDefault(); window.location.href='notifications.html';
+        }
+
+        else if (e.key==='Enter' && e.altKey) {
+            e.preventDefault(); if (dropdown.classList.contains('show')) closeDropdown(); else openDropdown();
+        }
+    });
+});
+</script>< !-- Emergency link removed --></body></html>
