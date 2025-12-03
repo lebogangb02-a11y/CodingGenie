@@ -1470,174 +1470,19 @@ try {
         </div>
     </main>
 
-    <!-- JS Libraries - defer non-critical scripts -->
-    // SIMPLE DASHBOARD JAVASCRIPT - REPLACE YOUR CURRENT JS WITH THIS
-    document.addEventListener('DOMContentLoaded', function() {
-    console.log('🚀 Dashboard loaded - applying emergency fixes');
+    <!-- External JS Libraries (loaded first) -->
+    <script defer src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script defer src="https://unpkg.com/aos@2.3.4/dist/aos.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/typed.js@2.0.12"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.10.2/lottie.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
-    // Apply Now button - FORCE navigation
-    const applyNowButton = document.querySelector('a[href="edubridge_wizard.php"]');
-    if (applyNowButton) {
-    console.log('✅ Apply Now button found');
-    const newButton = document.createElement('a');
-    newButton.href = 'edubridge_wizard.php';
-    newButton.className = 'btn btn-primary';
-    newButton.innerHTML = '<i class="fas fa-rocket"></i> Apply Now';
-    newButton.style.pointerEvents = 'auto';
-    newButton.style.cursor = 'pointer';
-    newButton.style.zIndex = '10000';
-    newButton.style.position = 'relative';
-    applyNowButton.parentNode.replaceChild(newButton, applyNowButton);
-    newButton.addEventListener('click', function(e) {
-    console.log('🎯 Apply Now clicked - FORCING navigation');
-    window.location.href = 'edubridge_wizard.php';
-    return false;
-    });
-    console.log('✅ Apply Now button replaced with working version');
-    } else {
-    console.warn('⚠️ Apply Now button not found');
-    }
-
-    // Debug what's happening with the button
-    const btn = document.querySelector('a[href="edubridge_wizard.php"]');
-    if (btn) {
-    console.log('Button styles:', window.getComputedStyle(btn));
-    console.log('Pointer events:', window.getComputedStyle(btn).pointerEvents);
-    console.log('Cursor:', window.getComputedStyle(btn).cursor);
-    console.log('Z-index:', window.getComputedStyle(btn).zIndex);
-    }
-    });
-    </script>
-    <script>
-        // Live metrics polling every 30 seconds
+    <!-- Dashboard Initialization & Logic -->
+    <script defer>
         document.addEventListener('DOMContentLoaded', function() {
-            const statusBadge = document.getElementById('status-badge');
-            const progressPercentageEl = document.getElementById('progress-percentage');
-            const progressBar = document.getElementById('progress-bar');
-            const progressNote = document.getElementById('progress-note');
-            const notifUnread = document.getElementById('notif-unread');
-            const docsRequired = document.getElementById('docs-required-count');
-            const appsCount = document.getElementById('applications-count');
-            const chatActive = document.getElementById('chat-active');
+            console.log('🚀 Dashboard initialized');
 
-            function applyMetrics(data) {
-                try {
-                    if (typeof data.progress === 'number') {
-                        const pct = Math.max(0, Math.min(100, data.progress));
-                        if (progressPercentageEl) progressPercentageEl.textContent = pct + '%';
-                        if (progressBar) progressBar.style.width = pct + '%';
-                        if (progressNote) progressNote.textContent = "You're " + pct + "% closer to your dream university!";
-                    }
-                    if (data.status && statusBadge) {
-                        statusBadge.textContent = String(data.status).toUpperCase();
-                    }
-                    if (data.counts) {
-                        if (notifUnread) notifUnread.textContent = (data.counts.notifications || 0);
-                        if (docsRequired) docsRequired.textContent = (data.counts.documents_required || 0);
-                        if (appsCount) appsCount.textContent = (data.counts.applications || 0);
-                        if (chatActive) chatActive.textContent = (data.counts.active_chats || 0);
-                    }
-                } catch (e) {
-                    console.error('Apply metrics error', e);
-                }
-            }
-
-            function fetchMetrics() {
-                fetch('get-dashboard-metrics.php', {
-                        credentials: 'same-origin'
-                    })
-                    .then(function(r) {
-                        return r.json();
-                    })
-                    .then(function(data) {
-                        if (data && data.success) {
-                            applyMetrics(data);
-                        }
-                    })
-                    .catch(function(err) {
-                        console.error('Metrics fetch failed', err);
-                    });
-            }
-
-            // Initial load and 30s interval
-            fetchMetrics();
-            setInterval(fetchMetrics, 30000);
-        });
-    </script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            fetch('get-notifications.php')
-                .then(function(r) {
-                    return r.json();
-                })
-                .then(function(data) {
-                    if (data && data.success) {
-                        var el = document.getElementById('notif-unread');
-                        if (el) {
-                            el.textContent = data.unread || 0;
-                        }
-                    }
-                })
-                .catch(function(err) {
-                    console.error('Notifications fetch failed', err);
-                });
-        });
-    </script>
-    <!-- Emergency link removed -->
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- AOS animations JS -->
-    <script src="https://unpkg.com/aos@2.3.4/dist/aos.js"></script>
-    <script>
-        // Initialize AOS animations
-        AOS.init({
-            duration: 600,
-            once: true
-        });
-
-        // Initialize Bootstrap tooltips
-        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        tooltipTriggerList.forEach(function(tooltipTriggerEl) {
-            new bootstrap.Tooltip(tooltipTriggerEl);
-        });
-
-        // Motivational quote rotation
-        const quotes = [
-            "Believe in the journey. Every step counts.",
-            "Small progress daily leads to big results.",
-            "Your future self is cheering you on.",
-            "Dream it. Plan it. Achieve it.",
-            "You're closer than you think—keep going!"
-        ];
-        const subtextEl = document.getElementById('welcome-subtext');
-
-        function setRandomQuote() {
-            const q = quotes[Math.floor(Math.random() * quotes.length)];
-            if (subtextEl) subtextEl.textContent = q + " ✨";
-        }
-        setRandomQuote();
-        // Rotate every 30 seconds
-        setInterval(setRandomQuote, 30000);
-    </script>
-    <!-- JS Libraries -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://unpkg.com/aos@2.3.4/dist/aos.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/typed.js@2.0.12"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.10.2/lottie.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Init AOS animations
-            if (window.AOS) {
-                AOS.init({
-                    once: true,
-                    duration: 600,
-                    easing: 'ease-out'
-                });
-            }
-
-            // Circular progress ring
+            // ====== PROGRESS RING INITIALIZATION ======
             var pct = <?php echo (int)$completion_percentage; ?>;
             var radius = 70;
             var circumference = 2 * Math.PI * radius;
@@ -1648,7 +1493,66 @@ try {
                 ring.style.strokeDashoffset = offset;
             }
 
-            // Typed motivator messages
+            // ====== DARK MODE TOGGLE ======
+            var toggle = document.getElementById('themeToggle');
+            if (toggle) {
+                // Restore theme from localStorage
+                if (localStorage.getItem('dashboardTheme') === 'dark') {
+                    document.body.classList.add('dark');
+                    toggle.textContent = 'Light Mode';
+                }
+                toggle.addEventListener('click', function() {
+                    document.body.classList.toggle('dark');
+                    var isDark = document.body.classList.contains('dark');
+                    toggle.textContent = isDark ? 'Light Mode' : 'Dark Mode';
+                    localStorage.setItem('dashboardTheme', isDark ? 'dark' : 'light');
+                });
+            }
+
+            // ====== ANIMATIONS & EFFECTS ======
+            // Initialize AOS
+            if (window.AOS) {
+                AOS.init({
+                    once: true,
+                    duration: 600,
+                    easing: 'ease-out'
+                });
+            }
+
+            // Initialize Bootstrap tooltips
+            try {
+                var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+                tooltipTriggerList.forEach(function(tooltipTriggerEl) {
+                    new bootstrap.Tooltip(tooltipTriggerEl);
+                });
+            } catch (e) {
+                console.warn('Tooltip init failed:', e);
+            }
+
+            // ====== MOTIVATIONAL QUOTE ROTATION ======
+            var quotes = [
+                "Believe in the journey. Every step counts.",
+                "Small progress daily leads to big results.",
+                "Your future self is cheering you on.",
+                "Dream it. Plan it. Achieve it.",
+                "You're closer than you think—keep going!"
+            ];
+            var subtextEl = document.getElementById('welcome-subtext');
+
+            function setRandomQuote() {
+                try {
+                    if (subtextEl) {
+                        var q = quotes[Math.floor(Math.random() * quotes.length)];
+                        subtextEl.textContent = q + " ✨";
+                    }
+                } catch (e) {
+                    console.warn('Quote rotation error:', e);
+                }
+            }
+            setRandomQuote();
+            setInterval(setRandomQuote, 30000);
+
+            // ====== TYPED.JS ANIMATIONS ======
             var msgs;
             if (pct < 25) {
                 msgs = ['Starting strong!', 'Step by step, you\'ve got this!', 'Your future is calling — answer boldly.'];
@@ -1659,40 +1563,43 @@ try {
             } else {
                 msgs = ['You made it! 🎉', 'Congratulations — cap and gown ready!', 'Dream unlocked — onward!'];
             }
+
             var motivatorEl = document.getElementById('motivatorText');
             if (window.Typed) {
-                if (motivatorEl) {
-                    new Typed('#motivatorText', {
-                        strings: msgs,
-                        typeSpeed: 40,
-                        backSpeed: 25,
-                        backDelay: 1800,
-                        loop: true
-                    });
+                try {
+                    if (motivatorEl) {
+                        new Typed('#motivatorText', {
+                            strings: msgs,
+                            typeSpeed: 40,
+                            backSpeed: 25,
+                            backDelay: 1800,
+                            loop: true
+                        });
+                    }
+                    var quoteMsgs = [
+                        'Stay consistent — your dream university awaits.',
+                        'EduBridgeSA believes in you.',
+                        'Little progress is still progress.',
+                        'Every application brings you closer to your goal.'
+                    ];
+                    if (document.getElementById('quoteTyped')) {
+                        new Typed('#quoteTyped', {
+                            strings: quoteMsgs,
+                            typeSpeed: 35,
+                            backSpeed: 20,
+                            backDelay: 2200,
+                            loop: true
+                        });
+                    }
+                } catch (e) {
+                    console.error('Typed.js init failed:', e);
+                    if (motivatorEl) motivatorEl.textContent = msgs[0];
+                    var qt = document.getElementById('quoteTyped');
+                    if (qt) qt.textContent = 'Stay consistent — your dream university awaits.';
                 }
-                // Standalone quote box
-                var quoteMsgs = [
-                    'Stay consistent — your dream university awaits.',
-                    'EduBridgeSA believes in you.',
-                    'Little progress is still progress.',
-                    'Every application brings you closer to your goal.'
-                ];
-                if (document.getElementById('quoteTyped')) {
-                    new Typed('#quoteTyped', {
-                        strings: quoteMsgs,
-                        typeSpeed: 35,
-                        backSpeed: 20,
-                        backDelay: 2200,
-                        loop: true
-                    });
-                }
-            } else {
-                if (motivatorEl) motivatorEl.textContent = msgs[0];
-                var qt = document.getElementById('quoteTyped');
-                if (qt) qt.textContent = 'Stay consistent — your dream university awaits.';
             }
 
-            // Lottie illustration based on progress
+            // ====== LOTTIE ANIMATIONS ======
             var lottieUrl = (pct < 25) ?
                 'https://assets1.lottiefiles.com/packages/lf20_1pxqjw0q.json' :
                 (pct < 75) ?
@@ -1709,29 +1616,104 @@ try {
                         autoplay: true,
                         path: lottieUrl
                     });
-                } catch (e) {}
+                } catch (e) {
+                    console.warn('Lottie init failed:', e);
+                }
             }
 
-            // Confetti celebration at 100%
+            // ====== CONFETTI CELEBRATION ======
             if (pct >= 100 && window.confetti) {
-                confetti({
-                    particleCount: 120,
-                    spread: 100,
-                    origin: {
-                        y: 0.6
+                try {
+                    confetti({
+                        particleCount: 120,
+                        spread: 100,
+                        origin: { y: 0.6 }
+                    });
+                } catch (e) {
+                    console.warn('Confetti failed:', e);
+                }
+            }
+
+            // ====== METRICS POLLING ======
+            function applyMetrics(data) {
+                try {
+                    if (data.progress && typeof data.progress === 'number') {
+                        var progressPercent = Math.max(0, Math.min(100, data.progress));
+                        var progressPercentageEl = document.getElementById('progress-percentage');
+                        var progressBar = document.getElementById('progress-bar');
+                        var progressNote = document.getElementById('progress-note');
+
+                        if (progressPercentageEl) progressPercentageEl.textContent = progressPercent + '%';
+                        if (progressBar) progressBar.style.width = progressPercent + '%';
+                        if (progressNote) progressNote.textContent = "You're " + progressPercent + "% closer to your dream university!";
                     }
-                });
+                    if (data.counts) {
+                        var notifUnread = document.getElementById('notif-unread');
+                        var docsRequired = document.getElementById('docs-required-count');
+                        var appsCount = document.getElementById('applications-count');
+                        var chatActive = document.getElementById('chat-active');
+
+                        if (notifUnread) notifUnread.textContent = (data.counts.notifications || 0);
+                        if (docsRequired) docsRequired.textContent = (data.counts.documents_required || 0);
+                        if (appsCount) appsCount.textContent = (data.counts.applications || 0);
+                        if (chatActive) chatActive.textContent = (data.counts.active_chats || 0);
+                    }
+                } catch (e) {
+                    console.error('Apply metrics error:', e);
+                }
             }
 
-            // Dark mode toggle
-            var toggle = document.getElementById('themeToggle');
-            if (toggle) {
-                toggle.addEventListener('click', function() {
-                    document.body.classList.toggle('dark');
-                    toggle.textContent = document.body.classList.contains('dark') ? 'Light Mode' : 'Dark Mode';
-                });
+            function fetchMetrics() {
+                // Skip if offline
+                if (!navigator.onLine) {
+                    console.warn('Offline - skipping metrics fetch');
+                    return;
+                }
+
+                try {
+                    fetch('get-dashboard-metrics.php', { credentials: 'same-origin' })
+                        .then(function(r) {
+                            if (!r.ok) throw new Error('HTTP ' + r.status);
+                            return r.json();
+                        })
+                        .then(function(data) {
+                            if (data && data.success) {
+                                applyMetrics(data);
+                            }
+                        })
+                        .catch(function(err) {
+                            console.error('Metrics fetch failed:', err);
+                        });
+                } catch (e) {
+                    console.error('Fetch metrics error:', e);
+                }
             }
 
+            // Initial fetch and 30s interval
+            fetchMetrics();
+            setInterval(fetchMetrics, 30000);
+
+            // Fetch notifications on page load
+            try {
+                fetch('get-notifications.php')
+                    .then(function(r) {
+                        if (!r.ok) throw new Error('HTTP ' + r.status);
+                        return r.json();
+                    })
+                    .then(function(data) {
+                        if (data && data.success) {
+                            var el = document.getElementById('notif-unread');
+                            if (el) el.textContent = data.unread || 0;
+                        }
+                    })
+                    .catch(function(err) {
+                        console.error('Notifications fetch failed:', err);
+                    });
+            } catch (e) {
+                console.error('Notification fetch error:', e);
+            }
+
+            console.log('✅ Dashboard fully initialized');
         });
     </script>
 </body>
