@@ -1,6 +1,29 @@
 {
   "version": "2.0.0",
   "tasks": [
+    {
+      "label": "Start CodingGenie Dev Server",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "dev"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": false
+      },
+      // If supported by the user's VS Code, this will run the task when the folder opens.
+      "runOn": "folderOpen"
+    }
+  ]
+}
+{
+  "version": "2.0.0",
+  "tasks": [
     // Compile and bundle the extension
     {
       "label": "vscode-extension:build",

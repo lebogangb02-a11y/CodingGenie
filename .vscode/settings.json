@@ -1,4 +1,15 @@
 {
+  // Workspace settings to improve developer experience for CodingGenie
+  "files.exclude": {
+    "EdubridgeSA/uploads": true
+  },
+  "files.watcherExclude": {
+    "**/EdubridgeSA/uploads/**": true
+  },
+  "editor.formatOnSave": true,
+  "terminal.integrated.inheritEnv": true
+}
+{
   "python.defaultInterpreterPath": "${workspaceFolder}/server/.venv/bin/python3",
   "rust-analyzer.linkedProjects": ["./server/Cargo.toml"],
   "python.analysis.extraPaths": [],
