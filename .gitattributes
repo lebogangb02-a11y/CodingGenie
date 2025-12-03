@@ -1,0 +1,17 @@
+# Use automatic normalization for text files
+* text=auto
+
+# Mark common binary formats as binary so Git won't perform EOL conversions
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.pdf binary
+*.zip binary
+*.tgz binary
+*.tar.gz binary
+*.7z binary
+*.vsix binary
+
+# Keep node lockfiles as text
+package-lock.json text

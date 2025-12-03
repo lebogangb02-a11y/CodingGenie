@@ -1,3 +1,28 @@
+node_modules/
+dist/
+build/
+.env
+.DS_Store
+.vscode/
+.idea/
+.changes/
+.continueignore
+
+# Ignore uploaded user files and large artifacts
+EdubridgeSA/uploads/
+EdubridgeSA/uploads/*
+
+# VSIX and extension bundles
+*.vsix
+*.vsixmanifest
+
+# Archives
+*.zip
+*.tar.gz
+*.tgz
+
+# Logs
+*.log
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
