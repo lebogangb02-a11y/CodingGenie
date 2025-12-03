@@ -5,7 +5,10 @@
       "label": "Start CodingGenie Dev Server",
       "type": "shell",
       "command": "npm",
-      "args": ["run", "dev"],
+      "args": [
+        "run",
+        "dev"
+      ],
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -18,12 +21,7 @@
       },
       // If supported by the user's VS Code, this will run the task when the folder opens.
       "runOn": "folderOpen"
-    }
-  ]
-}
-{
-  "version": "2.0.0",
-  "tasks": [
+    },
     // Compile and bundle the extension
     {
       "label": "vscode-extension:build",
@@ -44,7 +42,9 @@
     },
     {
       "label": "vscode-extension:esbuild",
-      "dependsOn": ["vscode-extension:continue-ui:build"],
+      "dependsOn": [
+        "vscode-extension:continue-ui:build"
+      ],
       "type": "npm",
       "script": "esbuild-watch",
       "path": "extensions/vscode",
@@ -74,7 +74,9 @@
       "type": "npm",
       "script": "tsc",
       "path": "extensions/vscode",
-      "problemMatcher": ["$tsc"],
+      "problemMatcher": [
+        "$tsc"
+      ],
       "presentation": {
         "revealProblems": "onProblem",
         "clear": true
@@ -85,8 +87,12 @@
       "label": "vscode-extension:continue-ui:build",
       "type": "shell",
       "command": "node",
-      "args": ["${workspaceFolder}/extensions/vscode/scripts/prepackage.js"],
-      "problemMatcher": ["$tsc"],
+      "args": [
+        "${workspaceFolder}/extensions/vscode/scripts/prepackage.js"
+      ],
+      "problemMatcher": [
+        "$tsc"
+      ],
       "presentation": {
         "revealProblems": "onProblem",
         "clear": true
@@ -132,7 +138,9 @@
     {
       "label": "install-all-dependencies",
       "type": "shell",
-      "windows": { "command": "./scripts/install-dependencies.ps1" },
+      "windows": {
+        "command": "./scripts/install-dependencies.ps1"
+      },
       "command": "./scripts/install-dependencies.sh",
       "problemMatcher": [] // Empty so users are not prompted to select progress reporting
     },
@@ -145,7 +153,10 @@
       "options": {
         "cwd": "${workspaceFolder}/gui"
       },
-      "args": ["run", "dev"],
+      "args": [
+        "run",
+        "dev"
+      ],
       "isBackground": true,
       "problemMatcher": [
         {
@@ -171,7 +182,10 @@
       "label": "binary:esbuild",
       "type": "shell",
       "command": "npm",
-      "args": ["run", "esbuild"],
+      "args": [
+        "run",
+        "esbuild"
+      ],
       "problemMatcher": [],
       "options": {
         "cwd": "binary"
@@ -181,7 +195,12 @@
       "label": "docs:start",
       "type": "shell",
       "command": "npm",
-      "args": ["run", "start", "--", "--no-open"],
+      "args": [
+        "run",
+        "start",
+        "--",
+        "--no-open"
+      ],
       "problemMatcher": [],
       "options": {
         "cwd": "docs"
@@ -191,7 +210,9 @@
       "label": "clean",
       "type": "shell",
       "command": "node",
-      "args": ["${workspaceFolder}/scripts/uninstall.js"],
+      "args": [
+        "${workspaceFolder}/scripts/uninstall.js"
+      ],
       "problemMatcher": []
     }
   ]

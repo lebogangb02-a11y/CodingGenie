@@ -2,24 +2,20 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "type": "pwa-node",
+      "type": "node",
       "request": "launch",
       "name": "Launch CodingGenie (npm run dev)",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal"
-    }
-  ]
-}
-{
-  // Use IntelliSense to learn about possible attributes.
-  // Hover to view descriptions of existing attributes.
-  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
-  "version": "0.2.0",
-  "compounds": [],
-  "configurations": [
-  
+    },
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     {
       "name": "Launch extension",
       "type": "extensionHost",
@@ -32,7 +28,9 @@
         "--extensionDevelopmentPath=${workspaceFolder}/extensions/vscode"
       ],
       "pauseForSourceMap": false,
-      "outFiles": ["${workspaceFolder}/extensions/vscode/out/extension.js"],
+      "outFiles": [
+        "${workspaceFolder}/extensions/vscode/out/extension.js"
+      ],
       "preLaunchTask": "vscode-extension:build",
       "env": {
         // "staging" for the preview deployment
@@ -44,9 +42,13 @@
       "type": "node",
       "request": "launch",
       "name": "Core Binary",
-      "skipFiles": ["<node_internals>/**"],
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
       "program": "${workspaceFolder}/binary/out/index.js",
-      "outFiles": ["${workspaceFolder}/binary/out/**/*.js"],
+      "outFiles": [
+        "${workspaceFolder}/binary/out/**/*.js"
+      ],
       "sourceMaps": true,
       "smartStep": true,
       "internalConsoleOptions": "openOnSessionStart",
@@ -68,7 +70,6 @@
         "--config",
         "${workspaceRoot}/core/jest.config.js"
       ],
-
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen"
     },

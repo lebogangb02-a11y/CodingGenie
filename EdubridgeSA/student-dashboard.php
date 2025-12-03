@@ -1216,11 +1216,11 @@ try {
         // Typed motivator messages
         var msgs;
         if (pct < 25) {
-            msgs = ['Starting strong!', 'Step by step, you've got this!', 'Your future is calling — answer boldly.'];
+            msgs = ['Starting strong!', 'Step by step, you\'ve got this!', 'Your future is calling — answer boldly.'];
         } else if (pct < 75) {
-            msgs = ['You're halfway there!', 'Momentum is your friend — keep going!', 'Every upload is a step closer.'];
+            msgs = ['You\'re halfway there!', 'Momentum is your friend — keep going!', 'Every upload is a step closer.'];
         } else if (pct < 100) {
-            msgs = ['Almost there — stay focused!', 'Final stretch — you're shining!', 'Your dedication shows.'];
+            msgs = ['Almost there — stay focused!', 'Final stretch — you\'re shining!', 'Your dedication shows.'];
         } else {
             msgs = ['You made it! 🎉', 'Congratulations — cap and gown ready!', 'Dream unlocked — onward!'];
         }
