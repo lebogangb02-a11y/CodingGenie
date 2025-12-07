@@ -156,6 +156,17 @@ function setLoginSession($user, $rememberMe = false) {
     $_SESSION['login_ip'] = getClientIP();
     $_SESSION['user_agent'] = $_SERVER['HTTP_USER_AGENT'] ?? '';
     $_SESSION['device_id'] = generateDeviceFingerprint();
+    // Generate CSRF token for this session if not present
+    if (!isset($_SESSION[CSRF_TOKEN_NAME]) || empty($_SESSION[CSRF_TOKEN_NAME])) {
+        try {
+            $_SESSION[CSRF_TOKEN_NAME] = bin2hex(random_bytes(32));
+            $_SESSION[CSRF_TOKEN_NAME . '_time'] = time();
+        } catch (Exception $e) {
+            // Fallback: less-strong token (should rarely happen)
+            $_SESSION[CSRF_TOKEN_NAME] = substr(bin2hex(openssl_random_pseudo_bytes(32)), 0, 64);
+            $_SESSION[CSRF_TOKEN_NAME . '_time'] = time();
+        }
+    }
     
     // Multi-device support with remember me
     if ($rememberMe) {
@@ -197,10 +208,24 @@ function generateDeviceFingerprint() {
 function generateRememberToken($userId) {
     $token = bin2hex(random_bytes(32));
     $hashedToken = hash('sha256', $token);
-    
-    // Store hashed token in database (you'll need to implement this)
-    // storeRememberToken($userId, $hashedToken, time() + (86400 * 30));
-    
+    // Attempt to store hashed token in remember_tokens table (if available)
+    try {
+        // Use existing PDO from config if available
+        global $pdo;
+        if (!isset($pdo) || !$pdo) {
+            $dsn = "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4";
+            $pdo = new PDO($dsn, DB_USER, DB_PASS, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+        }
+
+        $stmt = $pdo->prepare("INSERT INTO remember_tokens (user_id, token_hash, user_agent, ip_address, expires_at, created_at) VALUES (?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY), NOW())");
+        $ua = $_SERVER['HTTP_USER_AGENT'] ?? '';
+        $ip = getClientIP();
+        $stmt->execute([$userId, $hashedToken, $ua, $ip]);
+    } catch (Exception $e) {
+        // Log but do not break login flow
+        error_log('Failed to store remember token: ' . $e->getMessage());
+    }
+
     return $token;
 }
 

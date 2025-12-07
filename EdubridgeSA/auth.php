@@ -199,14 +199,37 @@ function authenticateAdmin($username, $password, $rememberMe = false) {
             ];
         }
         
-        // Use custom hashing for admin (not password_verify)
-        $hashed_input = hash('sha256', $password . AUTH_SALT);
-        if ($hashed_input === $admin['password_hash']) {
+        // Prefer modern password_verify(). Support legacy SHA256 hashes by upgrading them.
+        $storedHash = $admin['password_hash'] ?? '';
+        $isAuthenticated = false;
+
+        if (!empty($storedHash) && password_verify($password, $storedHash)) {
+            $isAuthenticated = true;
+        } else {
+            // Fallback for legacy SHA256 hashed passwords (upgrade path)
+            $legacyHash = hash('sha256', $password . AUTH_SALT);
+            if (hash_equals($legacyHash, $storedHash)) {
+                $isAuthenticated = true;
+                // Upgrade stored hash to password_hash() for future logins
+                try {
+                    $pdo = getPDO();
+                    if ($pdo) {
+                        $newHash = password_hash($password, PASSWORD_DEFAULT);
+                        $up = $pdo->prepare('UPDATE admins SET password_hash = ? WHERE id = ?');
+                        $up->execute([$newHash, $admin['id']]);
+                    }
+                } catch (Exception $e) {
+                    error_log('Failed to upgrade admin password hash: ' . $e->getMessage());
+                }
+            }
+        }
+
+        if ($isAuthenticated) {
             // Successful admin login
             setAdminLoginSession($admin, $rememberMe);
             updateAdminLastLogin($admin['id']);
             recordSuccessfulLogin($admin['id']);
-            
+
             return [
                 'success' => true,
                 'message' => 'Admin login successful.',
@@ -219,7 +242,7 @@ function authenticateAdmin($username, $password, $rememberMe = false) {
                 ],
                 'redirect_url' => 'admin_dashboard.php'
             ];
-        } else {
+        }
             recordFailedLogin($username, 'INVALID_ADMIN_PASSWORD');
             return [
                 'success' => false,

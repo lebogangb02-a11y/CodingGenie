@@ -11,11 +11,11 @@ if (basename($_SERVER['PHP_SELF'] ?? '') === 'config.php') {
     exit('Access denied');
 }
 
-// Database Configuration
-define('DB_HOST', 'localhost');
-define('DB_USER', 'u839420047_Edubridge');
-define('DB_PASS', 'BAs1m@n3');
-define('DB_NAME', 'u839420047_applications');
+// Database Configuration - Read from environment where possible
+define('DB_HOST', getenv('DB_HOST') ?: 'localhost');
+define('DB_USER', getenv('DB_USER') ?: 'u839420047_Edubridge');
+define('DB_PASS', getenv('DB_PASS') ?: 'BAs1m@n3');
+define('DB_NAME', getenv('DB_NAME') ?: 'u839420047_applications');
 
 // Email Settings (non-SMTP)
 define('ADMIN_EMAIL', 'applications@edubridgesa.co.za');
@@ -29,7 +29,7 @@ define('EMAIL_SUBJECT', 'New University Application - EduBridge SA');
 define('MAIL_FROM_OVERRIDE', null);  // Set to 'test@domain.com' for dev; null uses FROM_EMAIL
 
 // Application Settings
-define('UPLOAD_DIR', 'uploads/');
+define('UPLOAD_DIR', realpath(__DIR__) . '/uploads/');
 // 5MB per file (as per requirements)
 define('MAX_FILE_SIZE', 5 * 1024 * 1024); // 5MB
 // Restrict to PDF, JPEG and PNG formats only
@@ -141,4 +141,13 @@ if (defined('OPENAI_API_KEY') && OPENAI_API_KEY && strpos(OPENAI_API_KEY, 'sk-pr
 if (!defined('HUGGINGFACE_API_TOKEN')) {
     $hfToken = $_SERVER['HUGGINGFACE_API_TOKEN'] ?? getenv('HUGGINGFACE_API_TOKEN') ?? null;
     define('HUGGINGFACE_API_TOKEN', $hfToken);
+}
+
+// Ensure upload directory exists and is writable
+if (!is_dir(UPLOAD_DIR)) {
+    @mkdir(UPLOAD_DIR, 0755, true);
+}
+if (!is_dir(UPLOAD_DIR) || !is_writable(UPLOAD_DIR)) {
+    error_log('Upload directory not writable: ' . UPLOAD_DIR);
+    // Do not die in production; log the problem so operators can fix permissions
 }

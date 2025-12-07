@@ -93,21 +93,22 @@ function handleProfilePictureUpload($file, $student_id) {
     if ($crop && $crop !== $src) imagedestroy($crop);
     imagedestroy($dest);
 
-    // Update DB profile_picture path
+    // Validate student_id format
+    if (!preg_match('/^[A-Za-z0-9_-]+$/', (string)$student_id)) {
+        return ['success' => false, 'error' => 'Invalid student ID format.'];
+    }
+
+    // Update DB profile_picture path using existing PDO if available
     try {
-        $pdo = new PDO(
-            'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=utf8mb4',
-            DB_USER,
-            DB_PASS,
-            [
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_EMULATE_PREPARES => false,
-            ]
-        );
+        global $pdo;
+        if (!isset($pdo) || !$pdo) {
+            $dsn = 'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=utf8mb4';
+            $pdo = new PDO($dsn, DB_USER, DB_PASS, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+        }
         $stmt = $pdo->prepare('UPDATE users SET profile_picture = ?, updated_at = NOW() WHERE student_id = ?');
         $stmt->execute([$webPath, $student_id]);
     } catch (PDOException $e) {
+        error_log('profile-utils DB update failed: ' . $e->getMessage());
         return ['success' => false, 'error' => 'DB update failed.'];
     }
 

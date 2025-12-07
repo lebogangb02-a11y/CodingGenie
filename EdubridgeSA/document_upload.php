@@ -52,6 +52,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['lookup_application'])
 
 // Handle document upload
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['upload_documents'])) {
+    // CSRF validation
+    if (!isset($_POST[CSRF_TOKEN_NAME]) || ($_POST[CSRF_TOKEN_NAME] ?? '') !== ($_SESSION[CSRF_TOKEN_NAME] ?? '')) {
+        http_response_code(403);
+        $error = 'CSRF token validation failed.';
+    }
+
     $reference_number = sanitizeInput($_POST['reference_number']);
     
     try {
@@ -79,32 +85,92 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['upload_documents'])) 
             ];
             
             foreach ($document_types as $field_name => $document_name) {
-                if (isset($_FILES[$field_name]) && $_FILES[$field_name]['error'] === UPLOAD_ERR_OK) {
-                    $file = $_FILES[$field_name];
-                    
-                    // Validate file
-                    if ($file['size'] > UPLOAD_MAX_SIZE) {
-                        $upload_errors[] = "$document_name: File too large (max " . (UPLOAD_MAX_SIZE / 1024 / 1024) . "MB)";
-                        continue;
+                if (!isset($_FILES[$field_name]) || $_FILES[$field_name]['error'] !== UPLOAD_ERR_OK) {
+                    // Map upload error codes to messages
+                    if (isset($_FILES[$field_name]) && $_FILES[$field_name]['error'] !== UPLOAD_ERR_OK) {
+                        $code = $_FILES[$field_name]['error'];
+                        $messages = [
+                            UPLOAD_ERR_INI_SIZE => 'File exceeds server upload limit',
+                            UPLOAD_ERR_FORM_SIZE => 'File exceeds form limit',
+                            UPLOAD_ERR_PARTIAL => 'File was only partially uploaded',
+                            UPLOAD_ERR_NO_FILE => 'No file was uploaded',
+                            UPLOAD_ERR_NO_TMP_DIR => 'Server temporary folder missing',
+                            UPLOAD_ERR_CANT_WRITE => 'Failed to write file to disk',
+                        ];
+                        $upload_errors[] = $document_name . ': ' . ($messages[$code] ?? 'Unknown upload error');
                     }
-                    
-                    $file_extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-                    if (!in_array($file_extension, ALLOWED_FILE_TYPES)) {
-                        $upload_errors[] = "$document_name: Invalid file type. Allowed: " . implode(', ', ALLOWED_FILE_TYPES);
-                        continue;
-                    }
-                    
-                    // Generate unique filename and target directory
-                    $filename = $reference_number . '_' . $field_name . '_' . time() . '.' . $file_extension;
-                    $targetDir = getUploadDirFor($field_name);
-                    $upload_path = rtrim($targetDir, '/\\') . '/' . $filename;
-                    
-                    // Ensure target directory exists (config_application already creates defaults, but be defensive)
-                    if (!is_dir($targetDir)) {
-                        @mkdir($targetDir, 0755, true);
-                    }
-                    
-                    if (move_uploaded_file($file['tmp_name'], $upload_path)) {
+                    continue;
+                }
+
+                $file = $_FILES[$field_name];
+
+                // Validate size
+                $maxSize = defined('MAX_FILE_SIZE') ? MAX_FILE_SIZE : (5 * 1024 * 1024);
+                if ($file['size'] > $maxSize) {
+                    $upload_errors[] = "$document_name: File too large (max " . ($maxSize / 1024 / 1024) . "MB)";
+                    continue;
+                }
+
+                // Validate MIME type using finfo
+                $finfo = new finfo(FILEINFO_MIME_TYPE);
+                $mime = $finfo->file($file['tmp_name']);
+                $extension_to_mime = [
+                    'pdf' => 'application/pdf',
+                    'jpg' => 'image/jpeg',
+                    'jpeg' => 'image/jpeg',
+                    'png' => 'image/png'
+                ];
+
+                $file_extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+                if (!in_array($file_extension, ALLOWED_FILE_TYPES) || !isset($extension_to_mime[$file_extension])) {
+                    $upload_errors[] = "$document_name: Invalid file extension.";
+                    continue;
+                }
+
+                if ($mime !== $extension_to_mime[$file_extension]) {
+                    $upload_errors[] = "$document_name: MIME type does not match file extension.";
+                    continue;
+                }
+
+                // Sanitize reference number to prevent path traversal
+                $reference_safe = preg_replace('/[^A-Za-z0-9_-]/', '', $reference_number);
+                if (empty($reference_safe)) {
+                    $upload_errors[] = "$document_name: Invalid reference number.";
+                    continue;
+                }
+
+                // Generate secure random filename (preserve extension)
+                $randomName = bin2hex(random_bytes(16)) . '.' . $file_extension;
+                $targetDir = getUploadDirFor($field_name);
+
+                // Ensure target directory exists and is inside UPLOAD_DIR
+                if (!is_dir($targetDir)) {
+                    @mkdir($targetDir, 0755, true);
+                }
+                $realTarget = realpath($targetDir);
+                $uploadBase = realpath(UPLOAD_DIR);
+                if ($realTarget === false || $uploadBase === false || strpos($realTarget, $uploadBase) !== 0) {
+                    $upload_errors[] = "$document_name: Invalid upload directory configuration.";
+                    continue;
+                }
+
+                $upload_path = $realTarget . DIRECTORY_SEPARATOR . $randomName;
+
+                // Move uploaded file
+                if (move_uploaded_file($file['tmp_name'], $upload_path)) {
+                    // Save to database
+                    $stmt = $pdo->prepare("\n                            INSERT INTO documents (application_id, doc_type, file_name, file_path, file_size, uploaded_at) \n                            VALUES (?, ?, ?, ?, ?, NOW())\n                        ");
+                    $stmt->execute([
+                        $application_id,
+                        $field_name,
+                        $file['name'],
+                        $upload_path,
+                        $file['size']
+                    ]);
+                    $uploaded_files[] = $document_name;
+                } else {
+                    $upload_errors[] = "$document_name: Failed to move uploaded file.";
+                }
                         // Save to database
                         $stmt = $pdo->prepare("
                             INSERT INTO documents (application_id, doc_type, file_name, file_path, file_size, uploaded_at) 
