@@ -1,7 +1,8 @@
 <?php
 require_once __DIR__ . '/config.php';
 
-function getProfilePicture($user_data) {
+function getProfilePicture($user_data)
+{
     // Prefer DB path if valid
     $path = trim($user_data['profile_picture'] ?? '');
     if ($path) {
@@ -24,7 +25,8 @@ function getProfilePicture($user_data) {
     return 'images/default-avatar.png';
 }
 
-function handleProfilePictureUpload($file, $student_id) {
+function handleProfilePictureUpload($file, $student_id)
+{
     if (!isset($file) || $file['error'] !== UPLOAD_ERR_OK) {
         return ['success' => false, 'error' => 'No file uploaded or upload error.'];
     }
@@ -52,10 +54,17 @@ function handleProfilePictureUpload($file, $student_id) {
 
     // Create image resource
     switch ($mime) {
-        case 'image/jpeg': $src = imagecreatefromjpeg($file['tmp_name']); break;
-        case 'image/png': $src = imagecreatefrompng($file['tmp_name']); break;
-        case 'image/webp': $src = imagecreatefromwebp($file['tmp_name']); break;
-        default: return ['success' => false, 'error' => 'Unsupported image type.'];
+        case 'image/jpeg':
+            $src = imagecreatefromjpeg($file['tmp_name']);
+            break;
+        case 'image/png':
+            $src = imagecreatefrompng($file['tmp_name']);
+            break;
+        case 'image/webp':
+            $src = imagecreatefromwebp($file['tmp_name']);
+            break;
+        default:
+            return ['success' => false, 'error' => 'Unsupported image type.'];
     }
 
     if (!$src) {
@@ -67,7 +76,9 @@ function handleProfilePictureUpload($file, $student_id) {
     $x = (int)(($width - $size) / 2);
     $y = (int)(($height - $size) / 2);
     $crop = imagecrop($src, ['x' => $x, 'y' => $y, 'width' => $size, 'height' => $size]);
-    if ($crop === false) { $crop = $src; }
+    if ($crop === false) {
+        $crop = $src;
+    }
 
     // Resize to 400x400
     $destSize = 400;
@@ -114,5 +125,3 @@ function handleProfilePictureUpload($file, $student_id) {
 
     return ['success' => true, 'path' => $webPath];
 }
-
-?>

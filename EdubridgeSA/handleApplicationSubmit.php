@@ -39,7 +39,8 @@ use PHPMailer\PHPMailer\Exception;
 /**
  * Generate unique application reference
  */
-function generateApplicationReference(PDO $pdo) {
+function generateApplicationReference(PDO $pdo)
+{
     $year = date('Y');
     $attempts = 0;
     $maxAttempts = 10;
@@ -74,9 +75,10 @@ function generateApplicationReference(PDO $pdo) {
 /**
  * Validate form data
  */
-function validateFormData($data) {
+function validateFormData($data)
+{
     $errors = [];
-    
+
     // Required fields that match the comprehensive form
     $requiredFields = [
         'first_name' => 'First Name',
@@ -105,29 +107,29 @@ function validateFormData($data) {
         'terms_conditions' => 'Terms and Conditions',
         'privacy_policy' => 'Privacy Policy'
     ];
-    
+
     foreach ($requiredFields as $field => $label) {
         if (empty($data[$field])) {
             $errors[$field] = $label . ' is required.';
         }
     }
-    
+
     // Email validation
     if (!empty($data['email']) && !filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
         $errors['email'] = 'Please enter a valid email address.';
     }
-    
+
     // Phone validation
     if (!empty($data['phone']) && !preg_match('/^[0-9+\-\s()]{7,20}$/', $data['phone'])) {
         $errors['phone'] = 'Please enter a valid phone number.';
     }
-    
+
     // Date of Birth validation
     if (!empty($data['dob'])) {
         $dob = new DateTime($data['dob']);
         $now = new DateTime();
         $age = $now->diff($dob)->y;
-        
+
         if ($age < 16) {
             $errors['dob'] = 'Applicants must be at least 16 years old.';
         }
@@ -135,45 +137,46 @@ function validateFormData($data) {
             $errors['dob'] = 'Please enter a valid date of birth.';
         }
     }
-    
+
     // APS Score validation
     if (!empty($data['aps']) && (!is_numeric($data['aps']) || $data['aps'] < 0 || $data['aps'] > 50)) {
         $errors['aps'] = 'APS Score must be a number between 0 and 50.';
     }
-    
+
     // Matric Year validation
     if (!empty($data['matric_year'])) {
         $currentYear = (int)date('Y');
         $matricYear = (int)$data['matric_year'];
-        
+
         if ($matricYear < $currentYear - 50 || $matricYear > $currentYear + 1) {
             $errors['matric_year'] = 'Please enter a valid matric year.';
         }
     }
-    
+
     return $errors;
 }
 
 /**
  * Handle file uploads
  */
-function handleFileUploads($files) {
+function handleFileUploads($files)
+{
     $result = [
         'files' => [],
         'errors' => []
     ];
-    
+
     // Create upload directory if it doesn't exist
     if (!file_exists(UPLOAD_DIR)) {
         mkdir(UPLOAD_DIR, 0755, true);
     }
-    
+
     $allowedTypes = [
         'application/pdf',
         'image/jpeg',
         'image/jpg'
     ];
-    
+
     // Process each uploaded file
     foreach ($files as $field => $file) {
         // Handle multiple file uploads (like additional_documents)
@@ -181,39 +184,39 @@ function handleFileUploads($files) {
             // Multiple files - process each one
             $uploadedFiles = [];
             $fileErrors = [];
-            
+
             for ($i = 0; $i < count($file['name']); $i++) {
                 if (empty($file['name'][$i])) {
                     continue;
                 }
-                
+
                 // Check for upload errors
                 if ($file['error'][$i] !== UPLOAD_ERR_OK) {
                     $fileErrors[] = 'File ' . ($i + 1) . ' upload failed.';
                     continue;
                 }
-                
+
                 // Check file size
                 if ($file['size'][$i] > MAX_FILE_SIZE) {
                     $fileErrors[] = 'File ' . ($i + 1) . ' size exceeds the limit of 2MB.';
                     continue;
                 }
-                
+
                 // Check file type
                 $finfo = finfo_open(FILEINFO_MIME_TYPE);
                 $mimeType = finfo_file($finfo, $file['tmp_name'][$i]);
                 finfo_close($finfo);
-                
+
                 if (!in_array($mimeType, $allowedTypes)) {
                     $fileErrors[] = 'File ' . ($i + 1) . ' has invalid type. Allowed: PDF, JPEG.';
                     continue;
                 }
-                
+
                 // Generate unique filename
                 $extension = pathinfo($file['name'][$i], PATHINFO_EXTENSION);
                 $filename = uniqid() . '_' . time() . '_' . $i . '.' . $extension;
                 $targetPath = UPLOAD_DIR . $filename;
-                
+
                 // Move uploaded file
                 if (move_uploaded_file($file['tmp_name'][$i], $targetPath)) {
                     $uploadedFiles[] = $filename;
@@ -221,47 +224,46 @@ function handleFileUploads($files) {
                     $fileErrors[] = 'Failed to upload file ' . ($i + 1) . '.';
                 }
             }
-            
+
             if (!empty($uploadedFiles)) {
                 $result['files'][$field] = $uploadedFiles;
             }
             if (!empty($fileErrors)) {
                 $result['errors'][$field] = implode(' ', $fileErrors);
             }
-            
         } else {
             // Single file upload
             if (empty($file['name'])) {
                 continue;
             }
-            
+
             // Check for upload errors
             if ($file['error'] !== UPLOAD_ERR_OK) {
                 $result['errors'][$field] = 'File upload failed.';
                 continue;
             }
-            
+
             // Check file size
             if ($file['size'] > MAX_FILE_SIZE) {
                 $result['errors'][$field] = 'File size exceeds the limit of 2MB.';
                 continue;
             }
-            
+
             // Check file type
             $finfo = finfo_open(FILEINFO_MIME_TYPE);
             $mimeType = finfo_file($finfo, $file['tmp_name']);
             finfo_close($finfo);
-            
+
             if (!in_array($mimeType, $allowedTypes)) {
                 $result['errors'][$field] = 'Invalid file type. Allowed types: PDF, JPEG.';
                 continue;
             }
-            
+
             // Generate unique filename
             $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
             $filename = uniqid() . '_' . time() . '.' . $extension;
             $targetPath = UPLOAD_DIR . $filename;
-            
+
             // Move uploaded file
             if (move_uploaded_file($file['tmp_name'], $targetPath)) {
                 $result['files'][$field] = $filename;
@@ -270,23 +272,24 @@ function handleFileUploads($files) {
             }
         }
     }
-    
+
     return $result;
 }
 
 /**
  * Save application data to database
  */
-function saveApplicationData(PDO $pdo, $data, $files) {
+function saveApplicationData(PDO $pdo, $data, $files)
+{
     // Start transaction
     $pdo->beginTransaction();
-    
+
     try {
         // Generate unique application reference
         $applicationRef = generateApplicationReference($pdo);
-        
+
         // Comprehensive INSERT statement that matches new schema (68 columns - excluding auto_increment application_id)
-    $sql = "INSERT INTO applications (
+        $sql = "INSERT INTO applications (
                 application_ref, first_name, last_name, middle_name, title, gender, dob, id_number, marital_status, home_language, nationality, passport_number,
                 email, phone, alternative_phone, address, city, province, postal_code, country,
                 emergency_name, emergency_relationship, emergency_phone, emergency_email,
@@ -303,194 +306,193 @@ function saveApplicationData(PDO $pdo, $data, $files) {
                 signature, signature_date, application_date, status,
                 terms_conditions, privacy_policy, marketing_consent
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-    
-    $stmt = $pdo->prepare($sql);
-    
-    if (!$stmt) {
-        throw new Exception('Database prepare failed (PDO).');
-    }
-    
-    // Handle all form fields and assign to variables for execute()
-    // Personal Information
-    $firstName = (string)$data['first_name'];
-    $lastName = (string)$data['last_name'];
-    $middleName = (string)($data['middle_name'] ?? '');
-    $idNumber = (string)$data['id_number'];
-    $dob = (string)$data['dob'];
-    $gender = (string)$data['gender'];
-    $nationality = (string)($data['nationality'] ?? 'South African');
-    $title = (string)($data['title'] ?? '');
-    $homeLanguage = (string)($data['home_language'] ?? '');
-    $maritalStatus = (string)($data['marital_status'] ?? '');
-    $passportNumber = (string)($data['passport_number'] ?? '');
-    
-    // Contact Information
-    $address = (string)$data['address'];
-    $city = (string)$data['city'];
-    $province = (string)$data['province'];
-    $postalCode = (string)$data['postal_code'];
-    $phone = (string)$data['phone'];
-    $alternativePhone = (string)($data['alternative_phone'] ?? '');
-    $email = (string)$data['email'];
-    $country = (string)($data['country'] ?? 'South Africa');
-    
-    // Emergency Contact
-    $emergencyName = (string)($data['emergency_name'] ?? '');
-    $emergencyRelationship = (string)($data['emergency_relationship'] ?? '');
-    $emergencyPhone = (string)($data['emergency_phone'] ?? '');
-    $emergencyEmail = (string)($data['emergency_email'] ?? '');
-    
-    // Academic Information
-    $matricYear = (int)($data['matric_year'] ?? 0);
-    $examNumber = (string)($data['exam_number'] ?? '');
-    $highestGrade = (string)($data['highest_grade'] ?? '');
-    $aps = (int)($data['aps'] ?? 0);
-    $highSchoolName = (string)($data['high_school_name'] ?? '');
-    $mathsLevel = (string)($data['maths_level'] ?? '');
-    $englishLevel = (string)($data['english_level'] ?? '');
-    $additionalQualifications = (string)($data['additional_qualifications'] ?? '');
-    
-    // Employment and Program Information
-    $employmentStatus = (string)($data['employment_status'] ?? '');
-    $programChoice1 = (string)($data['program_choice_1'] ?? '');
-    $programChoice2 = (string)($data['program_choice_2'] ?? '');
-    $programChoice3 = (string)($data['program_choice_3'] ?? '');
-    $institutionChoice1 = (string)($data['institution_choice_1'] ?? '');
-    $institutionChoice2 = (string)($data['institution_choice_2'] ?? '');
-    $institutionChoice3 = (string)($data['institution_choice_3'] ?? '');
-    $programSpecialization1 = (string)($data['program_specialization_1'] ?? '');
-    $programSpecialization2 = (string)($data['program_specialization_2'] ?? '');
-    $programSpecialization3 = (string)($data['program_specialization_3'] ?? '');
-    $programOtherComment1 = (string)($data['program_other_comment_1'] ?? '');
-    $programOtherComment2 = (string)($data['program_other_comment_2'] ?? '');
-    $programOtherComment3 = (string)($data['program_other_comment_3'] ?? '');
-    $studyMode = (string)($data['study_mode'] ?? '');
-    $intendedStudyYear = (string)($data['intended_study_year'] ?? '');
-    $fundingSource = (string)($data['funding_source'] ?? '');
-    $motivation = (string)($data['motivation'] ?? '');
-    
-    // Additional Information
-    $hasDisability = (string)($data['has_disability'] ?? 'no');
-    $disabilityDetails = (string)($data['disability_details'] ?? '');
-    $previousTertiary = (string)($data['previous_tertiary'] ?? 'no');
-    $previousTertiaryDetails = (string)($data['previous_tertiary_details'] ?? '');
-    
-    // Document Upload Paths
-    $idDocument = (string)($files['files']['id_document'] ?? '');
-    $matricCertificate = (string)($files['files']['matric_certificate'] ?? '');
-    $proofOfPayment = (string)($files['files']['proof_of_payment'] ?? '');
-    
-    // Handle multiple additional documents as JSON
-    $additionalDocuments = '';
-    if (isset($files['files']['additional_documents']) && is_array($files['files']['additional_documents'])) {
-        $additionalDocuments = json_encode($files['files']['additional_documents']);
-    }
-    
-    // New document upload paths
-    $academicTranscript = (string)($files['files']['academic_transcript'] ?? '');
-    $proofOfResidence = (string)($files['files']['proof_of_residence'] ?? '');
-    $saqaEvaluation = (string)($files['files']['saqa_evaluation'] ?? '');
-    $maritalDocument = (string)($files['files']['marital_document'] ?? '');
-    
-    // Declaration and Consent Fields
-    $signature = (string)($data['signature'] ?? '');
-    $signatureDate = (string)($data['signature_date'] ?? '');
-    $applicationDate = date('Y-m-d H:i:s'); // Current timestamp
-    $status = 'Pending'; // Default status
-    $termsConditions = isset($data['terms_conditions']) ? 1 : 0;
-    $privacyPolicy = isset($data['privacy_policy']) ? 1 : 0;
-    $marketingConsent = isset($data['marketing_consent']) ? 1 : 0;
-    
-    // Prepare values in the same order as the INSERT columns
-    $values = [
-        $applicationRef,
-        $firstName,
-        $lastName,
-        $middleName,
-        $title,
-        $gender,
-        $dob,
-        $idNumber,
-        $maritalStatus,
-        $homeLanguage,
-        $nationality,
-        $passportNumber,
-        $email,
-        $phone,
-        $alternativePhone,
-        $address,
-        $city,
-        $province,
-        $postalCode,
-        $country,
-        $emergencyName,
-        $emergencyRelationship,
-        $emergencyPhone,
-        $emergencyEmail,
-        $hasDisability,
-        $disabilityDetails,
-        $previousTertiary,
-        $previousTertiaryDetails,
-        $highSchoolName,
-        $matricYear,
-        $aps,
-        $mathsLevel,
-        $englishLevel,
-        $additionalQualifications,
-        $examNumber,
-        $highestGrade,
-        $employmentStatus,
-        $programChoice1,
-        $programChoice2,
-        $programChoice3,
-        $institutionChoice1,
-        $programSpecialization1,
-        $programOtherComment1,
-        $institutionChoice2,
-        $programSpecialization2,
-        $programOtherComment2,
-        $institutionChoice3,
-        $programSpecialization3,
-        $programOtherComment3,
-        $intendedStudyYear,
-        $fundingSource,
-        $studyMode,
-        $motivation,
-        $matricCertificate,
-        $idDocument,
-        $proofOfPayment,
-        $additionalDocuments,
-        $academicTranscript,
-        $proofOfResidence,
-        $saqaEvaluation,
-        $maritalDocument,
-        $signature,
-        $signatureDate,
-        $applicationDate,
-        $status,
-        $termsConditions,
-        $privacyPolicy,
-        $marketingConsent
-    ];
 
-    // Execute insert
-    if ($stmt->execute($values)) {
-        $applicationId = (int)$pdo->lastInsertId();
-        // Commit transaction
-        $pdo->commit();
+        $stmt = $pdo->prepare($sql);
 
-        // Return both legacy and new keys for compatibility
-        return [
-            'id' => $applicationId,
-            'ref' => $applicationRef,
-            'application_id' => $applicationId,
-            'application_ref' => $applicationRef
+        if (!$stmt) {
+            throw new Exception('Database prepare failed (PDO).');
+        }
+
+        // Handle all form fields and assign to variables for execute()
+        // Personal Information
+        $firstName = (string)$data['first_name'];
+        $lastName = (string)$data['last_name'];
+        $middleName = (string)($data['middle_name'] ?? '');
+        $idNumber = (string)$data['id_number'];
+        $dob = (string)$data['dob'];
+        $gender = (string)$data['gender'];
+        $nationality = (string)($data['nationality'] ?? 'South African');
+        $title = (string)($data['title'] ?? '');
+        $homeLanguage = (string)($data['home_language'] ?? '');
+        $maritalStatus = (string)($data['marital_status'] ?? '');
+        $passportNumber = (string)($data['passport_number'] ?? '');
+
+        // Contact Information
+        $address = (string)$data['address'];
+        $city = (string)$data['city'];
+        $province = (string)$data['province'];
+        $postalCode = (string)$data['postal_code'];
+        $phone = (string)$data['phone'];
+        $alternativePhone = (string)($data['alternative_phone'] ?? '');
+        $email = (string)$data['email'];
+        $country = (string)($data['country'] ?? 'South Africa');
+
+        // Emergency Contact
+        $emergencyName = (string)($data['emergency_name'] ?? '');
+        $emergencyRelationship = (string)($data['emergency_relationship'] ?? '');
+        $emergencyPhone = (string)($data['emergency_phone'] ?? '');
+        $emergencyEmail = (string)($data['emergency_email'] ?? '');
+
+        // Academic Information
+        $matricYear = (int)($data['matric_year'] ?? 0);
+        $examNumber = (string)($data['exam_number'] ?? '');
+        $highestGrade = (string)($data['highest_grade'] ?? '');
+        $aps = (int)($data['aps'] ?? 0);
+        $highSchoolName = (string)($data['high_school_name'] ?? '');
+        $mathsLevel = (string)($data['maths_level'] ?? '');
+        $englishLevel = (string)($data['english_level'] ?? '');
+        $additionalQualifications = (string)($data['additional_qualifications'] ?? '');
+
+        // Employment and Program Information
+        $employmentStatus = (string)($data['employment_status'] ?? '');
+        $programChoice1 = (string)($data['program_choice_1'] ?? '');
+        $programChoice2 = (string)($data['program_choice_2'] ?? '');
+        $programChoice3 = (string)($data['program_choice_3'] ?? '');
+        $institutionChoice1 = (string)($data['institution_choice_1'] ?? '');
+        $institutionChoice2 = (string)($data['institution_choice_2'] ?? '');
+        $institutionChoice3 = (string)($data['institution_choice_3'] ?? '');
+        $programSpecialization1 = (string)($data['program_specialization_1'] ?? '');
+        $programSpecialization2 = (string)($data['program_specialization_2'] ?? '');
+        $programSpecialization3 = (string)($data['program_specialization_3'] ?? '');
+        $programOtherComment1 = (string)($data['program_other_comment_1'] ?? '');
+        $programOtherComment2 = (string)($data['program_other_comment_2'] ?? '');
+        $programOtherComment3 = (string)($data['program_other_comment_3'] ?? '');
+        $studyMode = (string)($data['study_mode'] ?? '');
+        $intendedStudyYear = (string)($data['intended_study_year'] ?? '');
+        $fundingSource = (string)($data['funding_source'] ?? '');
+        $motivation = (string)($data['motivation'] ?? '');
+
+        // Additional Information
+        $hasDisability = (string)($data['has_disability'] ?? 'no');
+        $disabilityDetails = (string)($data['disability_details'] ?? '');
+        $previousTertiary = (string)($data['previous_tertiary'] ?? 'no');
+        $previousTertiaryDetails = (string)($data['previous_tertiary_details'] ?? '');
+
+        // Document Upload Paths
+        $idDocument = (string)($files['files']['id_document'] ?? '');
+        $matricCertificate = (string)($files['files']['matric_certificate'] ?? '');
+        $proofOfPayment = (string)($files['files']['proof_of_payment'] ?? '');
+
+        // Handle multiple additional documents as JSON
+        $additionalDocuments = '';
+        if (isset($files['files']['additional_documents']) && is_array($files['files']['additional_documents'])) {
+            $additionalDocuments = json_encode($files['files']['additional_documents']);
+        }
+
+        // New document upload paths
+        $academicTranscript = (string)($files['files']['academic_transcript'] ?? '');
+        $proofOfResidence = (string)($files['files']['proof_of_residence'] ?? '');
+        $saqaEvaluation = (string)($files['files']['saqa_evaluation'] ?? '');
+        $maritalDocument = (string)($files['files']['marital_document'] ?? '');
+
+        // Declaration and Consent Fields
+        $signature = (string)($data['signature'] ?? '');
+        $signatureDate = (string)($data['signature_date'] ?? '');
+        $applicationDate = date('Y-m-d H:i:s'); // Current timestamp
+        $status = 'Pending'; // Default status
+        $termsConditions = isset($data['terms_conditions']) ? 1 : 0;
+        $privacyPolicy = isset($data['privacy_policy']) ? 1 : 0;
+        $marketingConsent = isset($data['marketing_consent']) ? 1 : 0;
+
+        // Prepare values in the same order as the INSERT columns
+        $values = [
+            $applicationRef,
+            $firstName,
+            $lastName,
+            $middleName,
+            $title,
+            $gender,
+            $dob,
+            $idNumber,
+            $maritalStatus,
+            $homeLanguage,
+            $nationality,
+            $passportNumber,
+            $email,
+            $phone,
+            $alternativePhone,
+            $address,
+            $city,
+            $province,
+            $postalCode,
+            $country,
+            $emergencyName,
+            $emergencyRelationship,
+            $emergencyPhone,
+            $emergencyEmail,
+            $hasDisability,
+            $disabilityDetails,
+            $previousTertiary,
+            $previousTertiaryDetails,
+            $highSchoolName,
+            $matricYear,
+            $aps,
+            $mathsLevel,
+            $englishLevel,
+            $additionalQualifications,
+            $examNumber,
+            $highestGrade,
+            $employmentStatus,
+            $programChoice1,
+            $programChoice2,
+            $programChoice3,
+            $institutionChoice1,
+            $programSpecialization1,
+            $programOtherComment1,
+            $institutionChoice2,
+            $programSpecialization2,
+            $programOtherComment2,
+            $institutionChoice3,
+            $programSpecialization3,
+            $programOtherComment3,
+            $intendedStudyYear,
+            $fundingSource,
+            $studyMode,
+            $motivation,
+            $matricCertificate,
+            $idDocument,
+            $proofOfPayment,
+            $additionalDocuments,
+            $academicTranscript,
+            $proofOfResidence,
+            $saqaEvaluation,
+            $maritalDocument,
+            $signature,
+            $signatureDate,
+            $applicationDate,
+            $status,
+            $termsConditions,
+            $privacyPolicy,
+            $marketingConsent
         ];
-    } else {
-        $errorInfo = $stmt->errorInfo();
-        throw new Exception('Database insert failed: ' . ($errorInfo[2] ?? 'Unknown error'));
-    }
 
+        // Execute insert
+        if ($stmt->execute($values)) {
+            $applicationId = (int)$pdo->lastInsertId();
+            // Commit transaction
+            $pdo->commit();
+
+            // Return both legacy and new keys for compatibility
+            return [
+                'id' => $applicationId,
+                'ref' => $applicationRef,
+                'application_id' => $applicationId,
+                'application_ref' => $applicationRef
+            ];
+        } else {
+            $errorInfo = $stmt->errorInfo();
+            throw new Exception('Database insert failed: ' . ($errorInfo[2] ?? 'Unknown error'));
+        }
     } catch (Exception $e) {
         // Rollback transaction on error
         if ($pdo->inTransaction()) {
@@ -503,10 +505,11 @@ function saveApplicationData(PDO $pdo, $data, $files) {
 /**
  * Send email notification using PHPMailer with SMTP
  */
-function sendEmailNotification($data, $applicationId) {
+function sendEmailNotification($data, $applicationId)
+{
     error_log("Starting sendEmailNotification function for application ID: {$applicationId}");
     $mail = new PHPMailer(true);
-    
+
     try {
         // Server settings
         $mail->isSMTP();
@@ -517,13 +520,13 @@ function sendEmailNotification($data, $applicationId) {
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
         $mail->Port       = SMTP_PORT;
         $mail->CharSet    = 'UTF-8';
-        
+
         // Disable debug output in production (enable only for testing)
         $mail->SMTPDebug = 0;
         // $mail->Debugoutput = function($str, $level) {
         //     error_log("SMTP Debug Level $level: $str");
         // };
-        
+
         // Additional SMTP options for better compatibility
         $mail->SMTPOptions = array(
             'ssl' => array(
@@ -532,19 +535,19 @@ function sendEmailNotification($data, $applicationId) {
                 'allow_self_signed' => true
             )
         );
-        
+
         // Set timeout
         $mail->Timeout = 60;
-        
+
         // Recipients
         $mail->setFrom(FROM_EMAIL, 'EduBridge SA');
         $mail->addAddress(ADMIN_EMAIL, 'EduBridge Admin');
         $mail->addReplyTo($data['email'], $data['first_name'] . ' ' . $data['last_name']);
-        
+
         // Content
         $mail->isHTML(true);
         $mail->Subject = "New University Application - ID: {$applicationId}";
-        
+
         $message = "
         <html>
         <head>
@@ -591,43 +594,42 @@ function sendEmailNotification($data, $applicationId) {
             </div>
         </body>
         </html>";
-        
+
         $mail->Body = $message;
-        
+
         // Plain text version for non-HTML clients
         $mail->AltBody = "New University Application - ID: {$applicationId}\n\n" .
-                        "Name: {$data['first_name']} {$data['last_name']}\n" .
-                        "Email: {$data['email']}\n" .
-                        "Phone: {$data['phone']}\n" .
-                        "First Program Choice: {$data['program_choice_1']}\n" .
-                        "Second Program Choice: {$data['program_choice_2']}\n" .
-                        "Study Mode: {$data['study_mode']}\n\n" .
-                        "Please log in to the admin panel to view the complete application.";
-        
+            "Name: {$data['first_name']} {$data['last_name']}\n" .
+            "Email: {$data['email']}\n" .
+            "Phone: {$data['phone']}\n" .
+            "First Program Choice: {$data['program_choice_1']}\n" .
+            "Second Program Choice: {$data['program_choice_2']}\n" .
+            "Study Mode: {$data['study_mode']}\n\n" .
+            "Please log in to the admin panel to view the complete application.";
+
         $mail->send();
         error_log("Admin notification email sent successfully for application ID: {$applicationId}");
-        
+
         // Send confirmation email to applicant
         sendConfirmationEmail($data, $applicationId);
-        
+
         return true;
-        
     } catch (Exception $e) {
         // Log the error for debugging
         error_log("PHPMailer Error: {$mail->ErrorInfo}");
         error_log("PHPMailer Exception: " . $e->getMessage());
-        
+
         // Fallback to basic mail() function
         try {
             $to = ADMIN_EMAIL;
             $subject = "New University Application - ID: {$applicationId}";
             $from = FROM_EMAIL;
-            
+
             $headers = "From: {$from}\r\n";
             $headers .= "Reply-To: {$data['email']}\r\n";
             $headers .= "MIME-Version: 1.0\r\n";
             $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
-            
+
             $fallbackMessage = "
             <h2>New University Application - ID: {$applicationId}</h2>
             <p><strong>Name:</strong> {$data['first_name']} {$data['last_name']}</p>
@@ -637,7 +639,7 @@ function sendEmailNotification($data, $applicationId) {
             <p><strong>Second Program Choice:</strong> {$data['program_choice_2']}</p>
             <p><strong>Study Mode:</strong> {$data['study_mode']}</p>
             <p><em>Please log in to the admin panel to view the complete application.</em></p>";
-            
+
             $mailResult = mail($to, $subject, $fallbackMessage, $headers);
             if ($mailResult) {
                 error_log("Fallback mail() function succeeded for application ID: {$applicationId}");
@@ -647,7 +649,6 @@ function sendEmailNotification($data, $applicationId) {
                 error_log("Fallback mail() function also failed for application ID: {$applicationId}");
             }
             return $mailResult;
-            
         } catch (Exception $fallbackError) {
             error_log("Email fallback also failed: " . $fallbackError->getMessage());
             throw new Exception("Email notification failed: " . $e->getMessage());
@@ -658,9 +659,10 @@ function sendEmailNotification($data, $applicationId) {
 /**
  * Send confirmation email to applicant
  */
-function sendConfirmationEmail($data, $applicationId) {
+function sendConfirmationEmail($data, $applicationId)
+{
     $mail = new PHPMailer(true);
-    
+
     try {
         // Server settings
         $mail->isSMTP();
@@ -671,7 +673,7 @@ function sendConfirmationEmail($data, $applicationId) {
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
         $mail->Port       = SMTP_PORT;
         $mail->CharSet    = 'UTF-8';
-        
+
         // Additional SMTP options for better compatibility
         $mail->SMTPOptions = array(
             'ssl' => array(
@@ -680,15 +682,15 @@ function sendConfirmationEmail($data, $applicationId) {
                 'allow_self_signed' => true
             )
         );
-        
+
         // Recipients
         $mail->setFrom(FROM_EMAIL, 'EduBridge SA');
         $mail->addAddress($data['email'], $data['first_name'] . ' ' . $data['last_name']);
-        
+
         // Content
         $mail->isHTML(true);
         $mail->Subject = "Application Confirmation - EduBridge SA (ID: {$applicationId})";
-        
+
         $confirmationMessage = "
         <html>
         <head>
@@ -736,13 +738,12 @@ function sendConfirmationEmail($data, $applicationId) {
             </div>
         </body>
         </html>";
-        
+
         $mail->Body = $confirmationMessage;
         $mail->AltBody = "Dear {$data['first_name']} {$data['last_name']}, Thank you for submitting your application to EduBridge SA. Your application ID is: {$applicationId}. We will contact you within 5-7 business days.";
-        
+
         $mail->send();
         error_log("Confirmation email sent successfully to {$data['email']} for application ID: {$applicationId}");
-        
     } catch (Exception $e) {
         error_log("Confirmation email failed for {$data['email']}: " . $e->getMessage());
         // Try basic mail as fallback
@@ -753,16 +754,17 @@ function sendConfirmationEmail($data, $applicationId) {
 /**
  * Send confirmation email using basic mail() function
  */
-function sendConfirmationEmailBasic($data, $applicationId) {
+function sendConfirmationEmailBasic($data, $applicationId)
+{
     try {
         $to = $data['email'];
         $subject = "Application Confirmation - EduBridge SA (ID: {$applicationId})";
         $from = FROM_EMAIL;
-        
+
         $headers = "From: {$from}\r\n";
         $headers .= "MIME-Version: 1.0\r\n";
         $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
-        
+
         $message = "
         <div style='background:linear-gradient(135deg, #1a5fb4 0%, #0d47a1 100%); color:#fff; padding:16px; text-align:center;'>
             <img src='" . BASE_URL . "/images/logo.png.jpg' alt='EduBridgeSA Logo' style='max-width:140px; display:block; margin:0 auto;'>
@@ -776,14 +778,13 @@ function sendConfirmationEmailBasic($data, $applicationId) {
             <p>We will contact you within 5-7 business days.</p>
             <p>Best regards,<br>EduBridge SA Admissions Team</p>
         </div>";
-        
+
         $result = mail($to, $subject, $message, $headers);
         if ($result) {
             error_log("Basic confirmation email sent successfully to {$data['email']} for application ID: {$applicationId}");
         } else {
             error_log("Basic confirmation email also failed for {$data['email']}");
         }
-        
     } catch (Exception $e) {
         error_log("Basic confirmation email error: " . $e->getMessage());
     }
@@ -813,12 +814,12 @@ try {
         error_log('Application submission failed: CSRF token missing');
         throw new Exception('Security token missing. Please refresh the page and try again.');
     }
-    
+
     if ($_POST[CSRF_TOKEN_NAME] !== $_SESSION[CSRF_TOKEN_NAME]) {
         error_log('Application submission failed: Invalid CSRF token');
         throw new Exception('Invalid security token. Please refresh the page and try again.');
     }
-    
+
     error_log('Application submission: CSRF validation passed');
 
     // Map any potential field name variations
@@ -832,7 +833,7 @@ try {
 
     // Comprehensive validation
     $errors = validateFormData($formData);
-    
+
     if (!empty($errors)) {
         error_log('Application submission failed: Form validation errors - ' . json_encode($errors));
         $_SESSION['form_errors'] = $errors;
@@ -841,12 +842,12 @@ try {
         header('Location: apply.php');
         exit;
     }
-    
+
     error_log('Application submission: Form validation passed');
 
     // Handle file uploads
     $uploadedFiles = handleFileUploads($_FILES);
-    
+
     if (isset($uploadedFiles['errors']) && !empty($uploadedFiles['errors'])) {
         error_log('Application submission failed: File upload errors - ' . json_encode($uploadedFiles['errors']));
         $_SESSION['form_errors'] = $uploadedFiles['errors'];
@@ -855,7 +856,7 @@ try {
         header('Location: apply.php');
         exit;
     }
-    
+
     error_log('Application submission: File uploads handled successfully');
 
     // Use global PDO connection from config
@@ -879,7 +880,7 @@ try {
     $applicationId = $result['application_id'];
     $applicationRef = $result['application_ref'];
     error_log('Application submission: Application data saved successfully with ID: ' . $applicationId . ' and Reference: ' . $applicationRef);
-    
+
     if ($applicationId) {
         // Send admin email notification (with error handling)
         try {
@@ -891,7 +892,7 @@ try {
             // Log email error but don't fail the application
             error_log('Admin email notification failed for application ID ' . $applicationId . ': ' . $emailError->getMessage());
         }
-        
+
         // Send document upload notification to applicant (with error handling)
         try {
             error_log("Attempting to send document upload notification for application ref: {$applicationRef}");
@@ -902,7 +903,7 @@ try {
             // Log email error but don't fail the application
             error_log('Document upload notification failed for application ref ' . $applicationRef . ': ' . $emailError->getMessage());
         }
-        
+
         // Set success data for student dashboard
         $_SESSION['application_id'] = $applicationId;
         $_SESSION['application_ref'] = $applicationRef;
@@ -910,10 +911,10 @@ try {
         $_SESSION['applicant_email'] = $formData['email'];
         $_SESSION['form_message'] = 'Your application has been submitted successfully! Application Reference: ' . $applicationRef . ' (ID: ' . $applicationId . ')';
         $_SESSION['form_message_type'] = 'success';
-        
+
         // Regenerate CSRF token
         $_SESSION[CSRF_TOKEN_NAME] = bin2hex(random_bytes(32));
-        
+
         // Check if user is logged in to determine redirect
         if (isset($_SESSION['student_id']) && !empty($_SESSION['student_id'])) {
             header('Location: student-dashboard.php');
@@ -924,16 +925,13 @@ try {
     } else {
         throw new Exception('Failed to save your application. Please try again later.');
     }
-
 } catch (Exception $e) {
-     $_SESSION['form_message'] = 'An error occurred: ' . $e->getMessage();
-     $_SESSION['form_message_type'] = 'error';
-     
-     // Log error for debugging
-     error_log('Application form error: ' . $e->getMessage());
-     
-     header('Location: apply.php');
-     exit;
- }
+    $_SESSION['form_message'] = 'An error occurred: ' . $e->getMessage();
+    $_SESSION['form_message_type'] = 'error';
 
- ?>
+    // Log error for debugging
+    error_log('Application form error: ' . $e->getMessage());
+
+    header('Location: apply.php');
+    exit;
+}

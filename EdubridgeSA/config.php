@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Configuration file for University Application System
  * EduBridge SA
