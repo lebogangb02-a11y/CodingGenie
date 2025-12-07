@@ -2,6 +2,8 @@
 if (session_status() === PHP_SESSION_NONE) session_start();
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/includes/admin_auth.php';
+// Security helpers provide CSRF and escaping helpers
+require_once __DIR__ . '/includes/security_helpers.php';
 
 admin_require_login();
 
@@ -10,7 +12,8 @@ $msg = '';
 $msgType = 'info';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['profile_image'])) {
-    // CSRF verification would go here
+    // Enforce CSRF validation
+    require_csrf();
     
     $upload_dir = __DIR__ . '/uploads/admins/';
     
