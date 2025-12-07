@@ -112,6 +112,26 @@ if (session_status() === PHP_SESSION_ACTIVE) {
     }
 }
 
+// Optional: Load .env via phpdotenv if available (non-fatal)
+$composerAutoload = __DIR__ . '/vendor/autoload.php';
+if (file_exists($composerAutoload)) {
+    require_once $composerAutoload;
+    if (class_exists('\Dotenv\Dotenv')) {
+        try {
+            $dotenv = \Dotenv\Dotenv::createImmutable(__DIR__);
+            $dotenv->safeLoad();
+        } catch (Exception $e) {
+            // Ignore dotenv load failures; environment variables may be provided by hosting
+            error_log('Dotenv load warning: ' . $e->getMessage());
+        }
+    }
+}
+
+// Include small security helpers (h(), csrf_input()) when available
+if (file_exists(__DIR__ . '/includes/security_helpers.php')) {
+    require_once __DIR__ . '/includes/security_helpers.php';
+}
+
 // Optional AI configuration (guarded)
 // Prefer .htaccess SetEnv or process environment; no hardcoded key in repo
 if (!defined('OPENAI_API_KEY')) {
