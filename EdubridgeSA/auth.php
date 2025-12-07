@@ -242,7 +242,7 @@ function authenticateAdmin($username, $password, $rememberMe = false) {
                 ],
                 'redirect_url' => 'admin_dashboard.php'
             ];
-        }
+        } else {
             recordFailedLogin($username, 'INVALID_ADMIN_PASSWORD');
             return [
                 'success' => false,
