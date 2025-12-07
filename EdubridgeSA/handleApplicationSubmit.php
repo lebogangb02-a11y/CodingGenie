@@ -39,31 +39,34 @@ use PHPMailer\PHPMailer\Exception;
 /**
  * Generate unique application reference
  */
-function generateApplicationReference($conn) {
+function generateApplicationReference(PDO $pdo) {
     $year = date('Y');
     $attempts = 0;
     $maxAttempts = 10;
-    
+
     do {
         // Generate a 6-digit number
-        $number = str_pad(rand(1, 999999), 6, '0', STR_PAD_LEFT);
+        $number = str_pad(random_int(1, 999999), 6, '0', STR_PAD_LEFT);
         $reference = 'APP' . $year . $number;
-        
-        // Check if this reference already exists
-        $stmt = $conn->prepare("SELECT id FROM applications WHERE application_ref = ?");
-        $stmt->bind_param('s', $reference);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $exists = $result->num_rows > 0;
-        $stmt->close();
-        
+
+        // Check if this reference already exists using PDO
+        try {
+            $stmt = $pdo->prepare("SELECT id FROM applications WHERE application_ref = ? LIMIT 1");
+            $stmt->execute([$reference]);
+            $exists = (bool) $stmt->fetchColumn();
+        } catch (Exception $e) {
+            error_log('generateApplicationReference DB error: ' . $e->getMessage());
+            // On DB error, break and fallback to timestamp-based ref
+            $exists = true;
+        }
+
         if (!$exists) {
             return $reference;
         }
-        
+
         $attempts++;
     } while ($attempts < $maxAttempts);
-    
+
     // Fallback: use timestamp if we can't generate unique reference
     return 'APP' . $year . time();
 }
@@ -274,13 +277,13 @@ function handleFileUploads($files) {
 /**
  * Save application data to database
  */
-function saveApplicationData($conn, $data, $files) {
+function saveApplicationData(PDO $pdo, $data, $files) {
     // Start transaction
-    $conn->autocommit(false);
+    $pdo->beginTransaction();
     
     try {
         // Generate unique application reference
-        $applicationRef = generateApplicationReference($conn);
+        $applicationRef = generateApplicationReference($pdo);
         
         // Comprehensive INSERT statement that matches new schema (68 columns - excluding auto_increment application_id)
     $sql = "INSERT INTO applications (
@@ -301,13 +304,13 @@ function saveApplicationData($conn, $data, $files) {
                 terms_conditions, privacy_policy, marketing_consent
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     
-    $stmt = $conn->prepare($sql);
+    $stmt = $pdo->prepare($sql);
     
     if (!$stmt) {
-        throw new Exception('Database prepare failed: ' . $conn->error);
+        throw new Exception('Database prepare failed (PDO).');
     }
     
-    // Handle all form fields and assign to variables for bind_param
+    // Handle all form fields and assign to variables for execute()
     // Personal Information
     $firstName = (string)$data['first_name'];
     $lastName = (string)$data['last_name'];
@@ -398,102 +401,101 @@ function saveApplicationData($conn, $data, $files) {
     $privacyPolicy = isset($data['privacy_policy']) ? 1 : 0;
     $marketingConsent = isset($data['marketing_consent']) ? 1 : 0;
     
-    // Bind parameters (68 parameters total to match INSERT columns)
-    // Type string: s=string, i=integer
-    // Count: 63 strings + 5 integers = 68 total
-    // Positions: application_ref(1)=s, matric_year(30)=i, aps(31)=i, terms_conditions(66)=i, privacy_policy(67)=i, marketing_consent(68)=i
-    $types = str_repeat('s', 29) . 'i' . 'i' . str_repeat('s', 34) . str_repeat('i', 3);
-    $stmt->bind_param(
-        $types,
-        $applicationRef,      // s - 1
-        $firstName,           // s - 2
-        $lastName,            // s - 3
-        $middleName,          // s - 4
-        $title,               // s - 5
-        $gender,              // s - 6
-        $dob,                 // s - 7
-        $idNumber,            // s - 8
-        $maritalStatus,       // s - 9
-        $homeLanguage,        // s - 10
-        $nationality,         // s - 11
-        $passportNumber,      // s - 12
-        $email,               // s - 13
-        $phone,               // s - 14
-        $alternativePhone,    // s - 15
-        $address,             // s - 16
-        $city,                // s - 17
-        $province,            // s - 18
-        $postalCode,          // s - 19
-        $country,             // s - 20
-        $emergencyName,       // s - 21
-        $emergencyRelationship, // s - 22
-        $emergencyPhone,      // s - 23
-        $emergencyEmail,      // s - 24
-        $hasDisability,       // s - 25
-        $disabilityDetails,   // s - 26
-        $previousTertiary,    // s - 27
-        $previousTertiaryDetails, // s - 28
-        $highSchoolName,      // s - 29
-        $matricYear,          // i - 30
-        $aps,                 // i - 31
-        $mathsLevel,          // s - 32
-        $englishLevel,        // s - 33
-        $additionalQualifications, // s - 34
-        $examNumber,          // s - 35
-        $highestGrade,        // s - 36
-        $employmentStatus,    // s - 37
-        $programChoice1,      // s - 38
-        $programChoice2,      // s - 39
-        $programChoice3,      // s - 40
-        $institutionChoice1,  // s - 41
-        $programSpecialization1, // s - 42
-        $programOtherComment1, // s - 43
-        $institutionChoice2,  // s - 44
-        $programSpecialization2, // s - 45
-        $programOtherComment2, // s - 46
-        $institutionChoice3,  // s - 47
-        $programSpecialization3, // s - 48
-        $programOtherComment3, // s - 49
-        $intendedStudyYear,   // s - 50
-        $fundingSource,       // s - 51
-        $studyMode,           // s - 52
-        $motivation,          // s - 53
-        $matricCertificate,   // s - 54
-        $idDocument,          // s - 55
-        $proofOfPayment,      // s - 56
-        $additionalDocuments, // s - 57
-        $academicTranscript,  // s - 58
-        $proofOfResidence,    // s - 59
-        $saqaEvaluation,      // s - 60
-        $maritalDocument,     // s - 61
-        $signature,           // s - 62
-        $signatureDate,       // s - 63
-        $applicationDate,     // s - 64
-        $status,              // s - 65
-        $termsConditions,     // i - 66
-        $privacyPolicy,       // i - 67
-        $marketingConsent     // i - 68
-    );
-    
-        if ($stmt->execute()) {
-            $applicationId = $conn->insert_id;
-            $stmt->close();
-            
-            // Commit transaction
-            $conn->commit();
-            $conn->autocommit(true);
-            
-            return ['id' => $applicationId, 'ref' => $applicationRef];
-        } else {
-            $error = $stmt->error;
-            $stmt->close();
-            throw new Exception('Database insert failed: ' . $error);
-        }
-        
+    // Prepare values in the same order as the INSERT columns
+    $values = [
+        $applicationRef,
+        $firstName,
+        $lastName,
+        $middleName,
+        $title,
+        $gender,
+        $dob,
+        $idNumber,
+        $maritalStatus,
+        $homeLanguage,
+        $nationality,
+        $passportNumber,
+        $email,
+        $phone,
+        $alternativePhone,
+        $address,
+        $city,
+        $province,
+        $postalCode,
+        $country,
+        $emergencyName,
+        $emergencyRelationship,
+        $emergencyPhone,
+        $emergencyEmail,
+        $hasDisability,
+        $disabilityDetails,
+        $previousTertiary,
+        $previousTertiaryDetails,
+        $highSchoolName,
+        $matricYear,
+        $aps,
+        $mathsLevel,
+        $englishLevel,
+        $additionalQualifications,
+        $examNumber,
+        $highestGrade,
+        $employmentStatus,
+        $programChoice1,
+        $programChoice2,
+        $programChoice3,
+        $institutionChoice1,
+        $programSpecialization1,
+        $programOtherComment1,
+        $institutionChoice2,
+        $programSpecialization2,
+        $programOtherComment2,
+        $institutionChoice3,
+        $programSpecialization3,
+        $programOtherComment3,
+        $intendedStudyYear,
+        $fundingSource,
+        $studyMode,
+        $motivation,
+        $matricCertificate,
+        $idDocument,
+        $proofOfPayment,
+        $additionalDocuments,
+        $academicTranscript,
+        $proofOfResidence,
+        $saqaEvaluation,
+        $maritalDocument,
+        $signature,
+        $signatureDate,
+        $applicationDate,
+        $status,
+        $termsConditions,
+        $privacyPolicy,
+        $marketingConsent
+    ];
+
+    // Execute insert
+    if ($stmt->execute($values)) {
+        $applicationId = (int)$pdo->lastInsertId();
+        // Commit transaction
+        $pdo->commit();
+
+        // Return both legacy and new keys for compatibility
+        return [
+            'id' => $applicationId,
+            'ref' => $applicationRef,
+            'application_id' => $applicationId,
+            'application_ref' => $applicationRef
+        ];
+    } else {
+        $errorInfo = $stmt->errorInfo();
+        throw new Exception('Database insert failed: ' . ($errorInfo[2] ?? 'Unknown error'));
+    }
+
     } catch (Exception $e) {
         // Rollback transaction on error
-        $conn->rollback();
-        $conn->autocommit(true);
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
         throw $e;
     }
 }
@@ -856,20 +858,24 @@ try {
     
     error_log('Application submission: File uploads handled successfully');
 
-    // Connect to database
-    $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
-    
-    if ($conn->connect_error) {
-        error_log('Application submission failed: Database connection error - ' . $conn->connect_error);
-        throw new Exception('Database connection failed: ' . $conn->connect_error);
+    // Use global PDO connection from config
+    global $pdo;
+    if (!isset($pdo) || !$pdo) {
+        // Attempt to create PDO if not available
+        try {
+            $dsn = "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4";
+            $pdo = new PDO($dsn, DB_USER, DB_PASS, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+        } catch (Exception $e) {
+            error_log('Application submission failed: Database connection error - ' . $e->getMessage());
+            throw new Exception('Database connection failed.');
+        }
     }
-    
-    $conn->set_charset('utf8mb4');
-    error_log('Application submission: Database connection successful');
+
+    error_log('Application submission: Database connection (PDO) available');
 
     // Save application data with file uploads
     error_log('Application submission: Attempting to save application data');
-    $result = saveApplicationData($conn, $formData, $uploadedFiles);
+    $result = saveApplicationData($pdo, $formData, $uploadedFiles);
     $applicationId = $result['application_id'];
     $applicationRef = $result['application_ref'];
     error_log('Application submission: Application data saved successfully with ID: ' . $applicationId . ' and Reference: ' . $applicationRef);
