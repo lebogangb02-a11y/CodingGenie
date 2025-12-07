@@ -13,6 +13,7 @@
  */
 
 require_once 'config_application.php';
+require_once __DIR__ . '/includes/upload_helper.php';
 
 // Map upload fields to configured directories
 function getUploadDirFor($field)
@@ -91,95 +92,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['upload_documents'])) 
                     'academic_results' => 'Latest Academic Results'
                 ];
 
-                // Process each upload field
+                // Process each upload field using centralized helper
                 foreach ($document_types as $field_name => $document_name) {
                     if (empty($_FILES[$field_name]) || ($_FILES[$field_name]['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
                         continue;
                     }
 
                     $file = $_FILES[$field_name];
-
-                    if (($file['error'] ?? UPLOAD_ERR_OK) !== UPLOAD_ERR_OK) {
-                        $code = $file['error'];
-                        $messages = [
-                            UPLOAD_ERR_INI_SIZE => 'File exceeds server upload limit',
-                            UPLOAD_ERR_FORM_SIZE => 'File exceeds form limit',
-                            UPLOAD_ERR_PARTIAL => 'File was only partially uploaded',
-                            UPLOAD_ERR_NO_FILE => 'No file was uploaded',
-                            UPLOAD_ERR_NO_TMP_DIR => 'Server temporary folder missing',
-                            UPLOAD_ERR_CANT_WRITE => 'Failed to write file to disk',
-                        ];
-                        $upload_errors[] = $document_name . ': ' . ($messages[$code] ?? 'Unknown upload error');
-                        continue;
-                    }
-
-                    // Size check
                     $maxSize = defined('MAX_FILE_SIZE') ? MAX_FILE_SIZE : (5 * 1024 * 1024);
-                    if ($file['size'] > $maxSize) {
-                        $upload_errors[] = "$document_name: File too large (max " . ($maxSize / 1024 / 1024) . "MB)";
+                    $uploadRes = store_uploaded_file($file, $field_name, null, $maxSize);
+
+                    if (!$uploadRes['success']) {
+                        $upload_errors[] = $document_name . ': ' . ($uploadRes['error'] ?? 'Unknown error');
                         continue;
                     }
 
-                    // MIME validation
-                    $finfo = new finfo(FILEINFO_MIME_TYPE);
-                    $mime = $finfo->file($file['tmp_name']);
-                    $extension_to_mime = [
-                        'pdf' => 'application/pdf',
-                        'jpg' => 'image/jpeg',
-                        'jpeg' => 'image/jpeg',
-                        'png' => 'image/png'
-                    ];
-
-                    $file_extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-                    if (!in_array($file_extension, ALLOWED_FILE_TYPES) || !isset($extension_to_mime[$file_extension])) {
-                        $upload_errors[] = "$document_name: Invalid file extension.";
-                        continue;
-                    }
-                    if ($mime !== $extension_to_mime[$file_extension]) {
-                        $upload_errors[] = "$document_name: MIME type does not match file extension.";
-                        continue;
-                    }
-
-                    // Sanitize reference
-                    $reference_safe = preg_replace('/[^A-Za-z0-9_-]/', '', $reference_number);
-                    if (empty($reference_safe)) {
-                        $upload_errors[] = "$document_name: Invalid reference number.";
-                        continue;
-                    }
-
-                    // Prepare target path
-                    $randomName = bin2hex(random_bytes(16)) . '.' . $file_extension;
-                    $targetDir = getUploadDirFor($field_name);
-                    if (!is_dir($targetDir) && !@mkdir($targetDir, 0755, true)) {
-                        $upload_errors[] = "$document_name: Failed to create upload directory.";
-                        continue;
-                    }
-                    $realTarget = realpath($targetDir);
-                    $uploadBase = realpath(UPLOAD_DIR) ?: realpath(__DIR__ . DIRECTORY_SEPARATOR . 'uploads');
-                    if ($realTarget === false || $uploadBase === false || strpos($realTarget, $uploadBase) !== 0) {
-                        $upload_errors[] = "$document_name: Invalid upload directory configuration.";
-                        continue;
-                    }
-
-                    $upload_path = $realTarget . DIRECTORY_SEPARATOR . $randomName;
-                    if (file_exists($upload_path)) {
-                        $upload_errors[] = "$document_name: A file with this name already exists.";
-                        continue;
-                    }
-
-                    if (!move_uploaded_file($file['tmp_name'], $upload_path)) {
-                        $upload_errors[] = "$document_name: Failed to move uploaded file.";
-                        continue;
-                    }
-
-                    // Insert record
+                    // Record upload in DB
                     try {
                         $stmt = $pdo->prepare("INSERT INTO documents (application_id, doc_type, file_name, file_path, file_size, uploaded_at) VALUES (?, ?, ?, ?, ?, NOW())");
-                        $stmt->execute([$application_id, $field_name, $file['name'], $upload_path, $file['size']]);
+                        $stmt->execute([$application_id, $field_name, $file['name'], $uploadRes['path'], $uploadRes['size']]);
                         $uploaded_files[] = $document_name;
                     } catch (Exception $dbEx) {
-                        @unlink($upload_path);
-                        $upload_errors[] = "$document_name: Failed to record upload in database.";
+                        // Roll back file on DB error
+                        @unlink($uploadRes['path']);
+                        $upload_errors[] = $document_name . ': Failed to record upload in database.';
                         continue;
                     }
                 }

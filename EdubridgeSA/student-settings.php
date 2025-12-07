@@ -73,7 +73,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $message = 'Your preferences have been updated successfully.';
                 $message_type = 'success';
-
             } elseif ($action === 'upload_profile_picture') {
                 // Handle profile picture upload
                 if (isset($_FILES['profile_picture']) && $_FILES['profile_picture']['error'] === UPLOAD_ERR_OK) {
@@ -130,7 +129,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $message = 'Please select a valid image file.';
                     $message_type = 'error';
                 }
-
             } elseif ($action === 'remove_profile_picture') {
                 // Handle profile picture removal
                 $stmt = $pdo->prepare("SELECT profile_picture FROM users WHERE student_id = ?");
@@ -193,7 +191,6 @@ try {
         header('Location: student-login.php');
         exit();
     }
-
 } catch (PDOException $e) {
     $message = 'Error loading user data.';
     $message_type = 'error';
@@ -202,6 +199,7 @@ try {
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -271,6 +269,7 @@ try {
             font-weight: 700;
             font-size: 1.5rem;
         }
+
         .logo img {
             height: 32px;
             width: auto;
@@ -376,158 +375,154 @@ try {
             gap: 2rem;
             margin-bottom: 2rem;
         }
-
-        .profile-picture {
-            width: 120px;
-            height: 120px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 4px solid var(--gray-200);
         }
 
-        .profile-picture-placeholder {
-            width: 120px;
-            height: 120px;
-            border-radius: 50%;
-            background: var(--gray-200);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 3rem;
-            color: var(--gray-400);
-        }
+        elseif ($action ==='upload_profile_picture') {
 
-        .profile-picture-actions {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
+            // Handle profile picture upload via centralized helper
+            if (isset($_FILES['profile_picture'])) {
+                $res =store_uploaded_file($_FILES['profile_picture'],
+                    'profile_pictures',
+                    ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+                    MAX_FILE_SIZE);
 
-        .file-upload-btn {
-            position: relative;
-            overflow: hidden;
-            display: inline-block;
-            background: var(--royal-blue);
-            color: var(--white);
-            padding: 0.75rem 1.5rem;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-            text-align: center;
-            font-weight: 500;
-        }
+                if ( !$res['success']) {
+                    $message ='Upload failed: ' . h($res['error']);
+                    $message_type ='error';
+                }
 
-        .file-upload-btn:hover {
-            background: var(--royal-blue-light);
-        }
+                else {
+                    $filepath =$res['path'];
 
-        .file-upload-btn input[type="file"] {
-            position: absolute;
-            left: -9999px;
-        }
+                    // Get current profile picture to delete old one
+                    $stmt =$pdo->prepare("SELECT profile_picture FROM users WHERE student_id = ?");
+                    $stmt->execute([$_SESSION['student_id']]);
+                    $current_user =$stmt->fetch();
 
-        .remove-picture-btn {
-            background: var(--error);
-            color: var(--white);
-            padding: 0.75rem 1.5rem;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-            font-weight: 500;
-        }
+                    // Delete old profile picture if it exists
+                    if ($current_user && !empty($current_user['profile_picture']) && file_exists($current_user['profile_picture'])) {
+                        @unlink($current_user['profile_picture']);
+                    }
 
-        .remove-picture-btn:hover {
-            background: #dc2626;
-        }
+                    // Update database with new profile picture path (store relative path)
+                    $relativePath =str_replace(realpath(__DIR__) . DIRECTORY_SEPARATOR, '', $filepath);
+                    $stmt =$pdo->prepare("UPDATE users SET profile_picture = ?, updated_at = NOW() WHERE student_id = ?"
+                    );
+                    $stmt->execute([$relativePath, $_SESSION['student_id']]);
 
-        /* Form Styles */
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
-
-        .form-group.checkbox-group {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            margin-bottom: 1rem;
-        }
-
-        label {
-            font-weight: 500;
-            color: var(--gray-700);
-            margin-bottom: 0.5rem;
-            display: block;
-        }
-
-        .checkbox-label {
-            margin-bottom: 0;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        input[type="checkbox"] {
-            width: 18px;
-            height: 18px;
-            accent-color: var(--royal-blue);
-        }
-
-        select {
-            width: 100%;
-            padding: 0.75rem;
-            border: 1px solid var(--gray-300);
-            border-radius: 5px;
-            font-size: 1rem;
-            transition: border-color 0.3s ease;
-        }
-
-        select:focus {
-            outline: none;
-            border-color: var(--royal-blue);
-            box-shadow: 0 0 0 3px rgba(26, 95, 180, 0.1);
-        }
-
-        .submit-btn {
-            background: var(--royal-blue);
-            color: var(--white);
-            padding: 0.75rem 2rem;
-            border: none;
-            border-radius: 5px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
-
-        .submit-btn:hover {
-            background: var(--royal-blue-light);
-        }
-
-        /* Responsive Design */
-        @media (max-width: 768px) {
-            nav {
-                padding: 1rem;
-                flex-direction: column;
-                gap: 1rem;
+                    $message ='Profile picture updated successfully.';
+                    $message_type ='success';
+                }
             }
 
-            .container {
-                padding: 0 1rem;
-            }
+            else {
+                $message ='Please select a valid image file.';
+                $message_type ='error';
 
-            .page-header, .settings-section {
-                padding: 1.5rem;
-            }
+                .remove-picture-btn {
+                    background: var(--error);
+                    color: var(--white);
+                    padding: 0.75rem 1.5rem;
+                    border: none;
+                    border-radius: 5px;
+                    cursor: pointer;
+                    transition: background-color 0.3s ease;
+                    font-weight: 500;
+                }
 
-            .profile-picture-container {
-                flex-direction: column;
-                text-align: center;
-            }
-        }
+                .remove-picture-btn:hover {
+                    background: #dc2626;
+                }
+
+                /* Form Styles */
+                .form-group {
+                    margin-bottom: 1.5rem;
+                }
+
+                .form-group.checkbox-group {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                    margin-bottom: 1rem;
+                }
+
+                label {
+                    font-weight: 500;
+                    color: var(--gray-700);
+                    margin-bottom: 0.5rem;
+                    display: block;
+                }
+
+                .checkbox-label {
+                    margin-bottom: 0;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                }
+
+                input[type="checkbox"] {
+                    width: 18px;
+                    height: 18px;
+                    accent-color: var(--royal-blue);
+                }
+
+                select {
+                    width: 100%;
+                    padding: 0.75rem;
+                    border: 1px solid var(--gray-300);
+                    border-radius: 5px;
+                    font-size: 1rem;
+                    transition: border-color 0.3s ease;
+                }
+
+                select:focus {
+                    outline: none;
+                    border-color: var(--royal-blue);
+                    box-shadow: 0 0 0 3px rgba(26, 95, 180, 0.1);
+                }
+
+                .submit-btn {
+                    background: var(--royal-blue);
+                    color: var(--white);
+                    padding: 0.75rem 2rem;
+                    border: none;
+                    border-radius: 5px;
+                    font-size: 1rem;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: background-color 0.3s ease;
+                }
+
+                .submit-btn:hover {
+                    background: var(--royal-blue-light);
+                }
+
+                /* Responsive Design */
+                @media (max-width: 768px) {
+                    nav {
+                        padding: 1rem;
+                        flex-direction: column;
+                        gap: 1rem;
+                    }
+
+                    .container {
+                        padding: 0 1rem;
+                    }
+
+                    .page-header,
+                    .settings-section {
+                        padding: 1.5rem;
+                    }
+
+                    .profile-picture-container {
+                        flex-direction: column;
+                        text-align: center;
+                    }
+                }
     </style>
 </head>
+
 <body>
     <!-- Navigation -->
     <div class="nav-container">
@@ -572,8 +567,8 @@ try {
 
                 <div class="profile-picture-container">
                     <?php if ($user_data['profile_picture'] && file_exists($user_data['profile_picture'])): ?>
-                        <img src="<?php echo htmlspecialchars($user_data['profile_picture']); ?>" 
-                             alt="Profile Picture" class="profile-picture">
+                        <img src="<?php echo htmlspecialchars($user_data['profile_picture']); ?>"
+                            alt="Profile Picture" class="profile-picture">
                     <?php else: ?>
                         <div class="profile-picture-placeholder">
                             <i class="fas fa-user"></i>
@@ -584,11 +579,11 @@ try {
                         <form method="POST" action="student-settings.php" enctype="multipart/form-data" id="profilePictureForm">
                             <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo $_SESSION[CSRF_TOKEN_NAME]; ?>">
                             <input type="hidden" name="action" value="upload_profile_picture">
-                            
+
                             <label for="profile_picture" class="file-upload-btn">
                                 <i class="fas fa-upload"></i> Choose Picture
-                                <input type="file" id="profile_picture" name="profile_picture" 
-                                       accept="image/*" onchange="document.getElementById('profilePictureForm').submit();">
+                                <input type="file" id="profile_picture" name="profile_picture"
+                                    accept="image/*" onchange="document.getElementById('profilePictureForm').submit();">
                             </label>
                         </form>
 
@@ -596,8 +591,8 @@ try {
                             <form method="POST" action="student-settings.php" style="display: inline;">
                                 <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo $_SESSION[CSRF_TOKEN_NAME]; ?>">
                                 <input type="hidden" name="action" value="remove_profile_picture">
-                                <button type="submit" class="remove-picture-btn" 
-                                        onclick="return confirm('Are you sure you want to remove your profile picture?')">
+                                <button type="submit" class="remove-picture-btn"
+                                    onclick="return confirm('Are you sure you want to remove your profile picture?')">
                                     <i class="fas fa-trash"></i> Remove Picture
                                 </button>
                             </form>
@@ -619,8 +614,8 @@ try {
                     <input type="hidden" name="action" value="update_preferences">
 
                     <div class="form-group checkbox-group">
-                        <input type="checkbox" id="email_notifications" name="email_notifications" 
-                               <?php echo ($user_data['email_notifications'] ?? 1) ? 'checked' : ''; ?>>
+                        <input type="checkbox" id="email_notifications" name="email_notifications"
+                            <?php echo ($user_data['email_notifications'] ?? 1) ? 'checked' : ''; ?>>
                         <label for="email_notifications" class="checkbox-label">
                             <i class="fas fa-envelope"></i>
                             Email Notifications
@@ -628,8 +623,8 @@ try {
                     </div>
 
                     <div class="form-group checkbox-group">
-                        <input type="checkbox" id="sms_notifications" name="sms_notifications" 
-                               <?php echo ($user_data['sms_notifications'] ?? 0) ? 'checked' : ''; ?>>
+                        <input type="checkbox" id="sms_notifications" name="sms_notifications"
+                            <?php echo ($user_data['sms_notifications'] ?? 0) ? 'checked' : ''; ?>>
                         <label for="sms_notifications" class="checkbox-label">
                             <i class="fas fa-sms"></i>
                             SMS Notifications
@@ -637,8 +632,8 @@ try {
                     </div>
 
                     <div class="form-group checkbox-group">
-                        <input type="checkbox" id="application_updates" name="application_updates" 
-                               <?php echo ($user_data['application_updates'] ?? 1) ? 'checked' : ''; ?>>
+                        <input type="checkbox" id="application_updates" name="application_updates"
+                            <?php echo ($user_data['application_updates'] ?? 1) ? 'checked' : ''; ?>>
                         <label for="application_updates" class="checkbox-label">
                             <i class="fas fa-file-alt"></i>
                             Application Status Updates
@@ -646,8 +641,8 @@ try {
                     </div>
 
                     <div class="form-group checkbox-group">
-                        <input type="checkbox" id="newsletter_subscription" name="newsletter_subscription" 
-                               <?php echo ($user_data['newsletter_subscription'] ?? 0) ? 'checked' : ''; ?>>
+                        <input type="checkbox" id="newsletter_subscription" name="newsletter_subscription"
+                            <?php echo ($user_data['newsletter_subscription'] ?? 0) ? 'checked' : ''; ?>>
                         <label for="newsletter_subscription" class="checkbox-label">
                             <i class="fas fa-newspaper"></i>
                             Newsletter Subscription
@@ -655,8 +650,8 @@ try {
                     </div>
 
                     <div class="form-group checkbox-group">
-                        <input type="checkbox" id="marketing_emails" name="marketing_emails" 
-                               <?php echo ($user_data['marketing_emails'] ?? 0) ? 'checked' : ''; ?>>
+                        <input type="checkbox" id="marketing_emails" name="marketing_emails"
+                            <?php echo ($user_data['marketing_emails'] ?? 0) ? 'checked' : ''; ?>>
                         <label for="marketing_emails" class="checkbox-label">
                             <i class="fas fa-bullhorn"></i>
                             Marketing Emails
@@ -708,4 +703,5 @@ try {
         </div>
     </div>
 </body>
+
 </html>

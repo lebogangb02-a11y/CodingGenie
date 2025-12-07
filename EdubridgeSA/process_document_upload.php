@@ -8,6 +8,8 @@
 
 session_start();
 require_once 'config.php';
+require_once __DIR__ . '/includes/security_helpers.php';
+require_once __DIR__ . '/includes/upload_helper.php';
 
 // Function to sanitize input data
 function sanitizeInput($data) {
@@ -17,69 +19,19 @@ function sanitizeInput($data) {
 
 // Function to handle file upload
 function handleDocumentUpload($fileInputName, $applicationId, $docType) {
-    if (!isset($_FILES[$fileInputName]) || $_FILES[$fileInputName]['error'] === UPLOAD_ERR_NO_FILE) {
+    // Delegate to centralized upload helper which performs finfo checks and size limits
+    if (!isset($_FILES[$fileInputName])) {
         throw new Exception("No file was uploaded");
     }
-    
-    $file = $_FILES[$fileInputName];
-    
-    // Check for upload errors
-    if ($file['error'] !== UPLOAD_ERR_OK) {
-        $errorMessages = [
-            UPLOAD_ERR_INI_SIZE => 'File size exceeds server limit',
-            UPLOAD_ERR_FORM_SIZE => 'File size exceeds form limit',
-            UPLOAD_ERR_PARTIAL => 'File was only partially uploaded',
-            UPLOAD_ERR_NO_TMP_DIR => 'Missing temporary folder',
-            UPLOAD_ERR_CANT_WRITE => 'Failed to write file to disk',
-            UPLOAD_ERR_EXTENSION => 'File upload stopped by extension'
-        ];
-        
-        $errorMessage = $errorMessages[$file['error']] ?? 'Unknown upload error';
-        throw new Exception($errorMessage);
-    }
-    
-    // Check file size (5MB max)
-    $maxSize = MAX_FILE_SIZE;
-    if ($file['size'] > $maxSize) {
-        throw new Exception("File size exceeds " . ($maxSize / 1024 / 1024) . "MB limit");
-    }
-    
-    // Check file type
-    $allowedMimes = ['application/pdf', 'image/jpeg', 'image/png'];
-    $finfo = finfo_open(FILEINFO_MIME_TYPE);
-    $mimeType = finfo_file($finfo, $file['tmp_name']);
-    finfo_close($finfo);
 
-    if (!in_array($mimeType, $allowedMimes)) {
-        throw new Exception("Invalid file type. Only PDF, JPEG, and PNG files are allowed");
+    $allowed = ['application/pdf', 'image/jpeg', 'image/png'];
+    $res = store_uploaded_file($_FILES[$fileInputName], 'documents/' . $applicationId, $allowed, MAX_FILE_SIZE);
+
+    if (!$res['success']) {
+        throw new Exception($res['error'] ?? 'Upload failed');
     }
-    
-    // Validate file extension
-    $allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png'];
-    $fileExtension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-    
-    if (!in_array($fileExtension, $allowedExtensions)) {
-        throw new Exception("Invalid file extension. Only PDF, JPG, JPEG, and PNG files are allowed");
-    }
-    
-    // Create upload directory if it doesn't exist
-    $uploadDir = UPLOAD_DIR . '/documents/' . $applicationId . '/';
-    if (!is_dir($uploadDir)) {
-        if (!mkdir($uploadDir, 0755, true)) {
-            throw new Exception("Failed to create upload directory");
-        }
-    }
-    
-    // Generate unique filename
-    $filename = $docType . '_' . time() . '_' . uniqid() . '.' . $fileExtension;
-    $filepath = $uploadDir . $filename;
-    
-    // Move uploaded file
-    if (!move_uploaded_file($file['tmp_name'], $filepath)) {
-        throw new Exception("Failed to move uploaded file");
-    }
-    
-    return $filepath;
+
+    return $res['path'];
 }
 
 // Function to send email notification

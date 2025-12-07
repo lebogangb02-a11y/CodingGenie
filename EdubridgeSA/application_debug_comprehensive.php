@@ -10,6 +10,12 @@ ini_set('error_log', 'debug_error.log');
 require_once 'config.php';
 require_once 'session_config.php';
 
+// Only allow this debug page when DEBUG_MODE is explicitly enabled in config
+if (!defined('DEBUG_MODE') || DEBUG_MODE !== true) {
+    http_response_code(404);
+    exit;
+}
+
 echo "<!DOCTYPE html><html><head><title>Application Debug</title>";
 echo "<style>body{font-family:Arial;margin:20px;} .success{color:green;} .error{color:red;} .warning{color:orange;} .info{color:blue;} pre{background:#f5f5f5;padding:10px;border:1px solid #ddd;}</style>";
 echo "</head><body>";
@@ -53,14 +59,14 @@ $criticalFiles = [
 foreach ($criticalFiles as $file => $description) {
     if (file_exists($file)) {
         echo "<p class='success'>✓ $description ($file) - EXISTS</p>";
-        
+
         // Check file permissions
         if (is_readable($file)) {
             echo "<p class='info'>  → Readable: YES</p>";
         } else {
             echo "<p class='error'>  → Readable: NO</p>";
         }
-        
+
         // Check for syntax errors
         $output = shell_exec("php -l $file 2>&1");
         if (strpos($output, 'No syntax errors') !== false) {
@@ -79,7 +85,7 @@ echo "<h2>4. Database Connection Test</h2>";
 try {
     $testQuery = $pdo->query("SELECT 1");
     echo "<p class='success'>✓ Database connection successful</p>";
-    
+
     // Check critical tables
     $tables = ['users', 'applications', 'application_documents'];
     foreach ($tables as $table) {
@@ -134,7 +140,7 @@ echo "<h2>6. Form Validation Test</h2>";
 // Check if validateFormData function exists
 if (function_exists('validateFormData')) {
     echo "<p class='success'>✓ validateFormData function exists</p>";
-    
+
     try {
         $validationResult = validateFormData($testData);
         if ($validationResult === true) {
@@ -148,7 +154,7 @@ if (function_exists('validateFormData')) {
     }
 } else {
     echo "<p class='error'>✗ validateFormData function not found</p>";
-    
+
     // Try to include the handler file to load the function
     if (file_exists('handleApplicationSubmit.php')) {
         echo "<p class='info'>Attempting to load handleApplicationSubmit.php...</p>";
@@ -157,12 +163,12 @@ if (function_exists('validateFormData')) {
             ob_start();
             include_once 'handleApplicationSubmit.php';
             $includeOutput = ob_get_clean();
-            
+
             if (!empty($includeOutput)) {
                 echo "<p class='warning'>Output from including handler:</p>";
                 echo "<pre>" . htmlspecialchars($includeOutput) . "</pre>";
             }
-            
+
             if (function_exists('validateFormData')) {
                 echo "<p class='success'>✓ validateFormData function loaded successfully</p>";
             } else {
@@ -267,4 +273,3 @@ echo "<li>Report back with specific error messages or behavior observed</li>";
 echo "</ol>";
 
 echo "</body></html>";
-?>

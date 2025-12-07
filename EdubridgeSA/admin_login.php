@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Admin Login - EduBridge SA
  * Now with proper database authentication and debug info
@@ -20,7 +21,7 @@ require_once __DIR__ . '/config.php';
 if ($_POST['action'] ?? '' === 'login') {
     $username = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
-    
+
     try {
         // Database connection
         $pdo = new PDO(
@@ -32,29 +33,37 @@ if ($_POST['action'] ?? '' === 'login') {
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             ]
         );
-        
+
         // Look for admin in database
         $stmt = $pdo->prepare("SELECT id, name, username, email, role, password_hash FROM admins WHERE (username = ? OR email = ?) AND role IN ('super', 'admin', 'staff')");
         $stmt->execute([$username, $username]);
         $admin = $stmt->fetch();
-        
+
         if ($admin) {
-            // Debug: Show what we're comparing
-            $hashed_input = hash('sha256', $password . AUTH_SALT);
-            $debug_info = "
-                <div class='alert alert-info'>
-                    <strong>Debug Information:</strong><br>
-                    Username: " . htmlspecialchars($username) . "<br>
-                    Password: " . htmlspecialchars($password) . "<br>
-                    AUTH_SALT: " . htmlspecialchars(AUTH_SALT) . "<br>
-                    Input Hash: " . htmlspecialchars($hashed_input) . "<br>
-                    Stored Hash: " . htmlspecialchars($admin['password_hash']) . "<br>
-                    Match: " . ($hashed_input === $admin['password_hash'] ? 'YES' : 'NO') . "
-                </div>
-            ";
-            
-            // Check password with custom hashing
-            if ($hashed_input === $admin['password_hash']) {
+            // Prefer modern password_hash()/password_verify(). Support legacy SHA256 hashes by upgrading them.
+            $storedHash = $admin['password_hash'] ?? '';
+
+            $passwordOk = false;
+            if (!empty($storedHash) && password_verify($password, $storedHash)) {
+                $passwordOk = true;
+            } else {
+                // Legacy fallback: SHA256(secret-salt)
+                $legacyHash = hash('sha256', $password . (defined('AUTH_SALT') ? AUTH_SALT : ''));
+                if (!empty($storedHash) && hash_equals($legacyHash, $storedHash)) {
+                    // Rehash with password_hash() for future logins
+                    $newHash = password_hash($password, PASSWORD_DEFAULT);
+                    try {
+                        $rehashStmt = $pdo->prepare("UPDATE admins SET password_hash = ? WHERE id = ?");
+                        $rehashStmt->execute([$newHash, $admin['id']]);
+                    } catch (Exception $e) {
+                        // Non-fatal: continue with login
+                        error_log('Failed to rehash admin password: ' . $e->getMessage());
+                    }
+                    $passwordOk = true;
+                }
+            }
+
+            if ($passwordOk) {
                 // Successful login
                 $_SESSION['admin_logged_in'] = true;
                 $_SESSION['admin_username'] = $admin['username'];
@@ -62,11 +71,11 @@ if ($_POST['action'] ?? '' === 'login') {
                 $_SESSION['admin_email'] = $admin['email'];
                 $_SESSION['admin_role'] = $admin['role'];
                 $_SESSION['user_id'] = $admin['id'];
-                
+
                 // Update last login
                 $update_stmt = $pdo->prepare("UPDATE admins SET last_login = NOW() WHERE id = ?");
                 $update_stmt->execute([$admin['id']]);
-                
+
                 header('Location: admin_dashboard.php');
                 exit;
             } else {
@@ -75,7 +84,6 @@ if ($_POST['action'] ?? '' === 'login') {
         } else {
             $error = "Admin user not found.";
         }
-        
     } catch (PDOException $e) {
         $error = "Database error: " . $e->getMessage();
     }
@@ -90,6 +98,7 @@ if ($_GET['action'] ?? '' === 'logout') {
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <title>Admin Login - EduBridgeSA</title>
@@ -101,13 +110,15 @@ if ($_GET['action'] ?? '' === 'logout') {
             display: flex;
             align-items: center;
         }
+
         .login-card {
             background: white;
             border-radius: 15px;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <div class="row justify-content-center">
@@ -118,53 +129,38 @@ if ($_GET['action'] ?? '' === 'logout') {
                         <small>EduBridgeSA Management System</small>
                     </div>
                     <div class="card-body p-4">
-                        <?php if (isset($debug_info)) echo $debug_info; ?>
-                        
                         <?php if (isset($error)): ?>
                             <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
                         <?php endif; ?>
-                        
+
                         <?php if (isset($message)): ?>
                             <div class="alert alert-success"><?php echo htmlspecialchars($message); ?></div>
                         <?php endif; ?>
 
                         <form method="POST">
                             <input type="hidden" name="action" value="login">
-                            
+
                             <div class="mb-3">
                                 <label class="form-label">Username or Email</label>
-                                <input type="text" name="username" class="form-control" required 
-                                       value="<?php echo htmlspecialchars($_POST['username'] ?? 'superadmin'); ?>">
+                                <input type="text" name="username" class="form-control" required
+                                    value="<?php echo htmlspecialchars($_POST['username'] ?? ''); ?>">
                             </div>
-                            
+
                             <div class="mb-3">
                                 <label class="form-label">Password</label>
-                                <input type="password" name="password" class="form-control" required 
-                                       value="<?php echo htmlspecialchars($_POST['password'] ?? 'password'); ?>">
+                                <input type="password" name="password" class="form-control" required>
                             </div>
-                            
+
                             <button type="submit" class="btn btn-primary w-100 btn-lg">Login to Admin Panel</button>
                         </form>
-                        
+
                         <div class="mt-4 p-3 bg-light rounded">
-                            <h6>Test Credentials (try these):</h6>
-                            <small class="text-muted">
-                                • <strong>superadmin</strong> / password<br>
-                                • <strong>superadmin</strong> / admin123<br>
-                                • <strong>admin</strong> / password<br>
-                                • <strong>staff</strong> / password
-                            </small>
-                            
-                            <div class="mt-3">
-                                <small class="text-danger">
-                                    <strong>Note:</strong> If passwords don't work, run this SQL to reset:<br>
-                                    <code>UPDATE admins SET password_hash = '5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8' WHERE id IN (1,2,3);</code>
-                                </small>
-                            </div>
+                            <h6>Administrator Access</h6>
+                            <small class="text-muted">Contact your system administrator to manage admin accounts or reset passwords.</small>
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="text-center mt-3">
                     <small class="text-white">
                         &copy; <?php echo date('Y'); ?> EduBridgeSA | Debug Login System
@@ -174,4 +170,5 @@ if ($_GET['action'] ?? '' === 'logout') {
         </div>
     </div>
 </body>
+
 </html>

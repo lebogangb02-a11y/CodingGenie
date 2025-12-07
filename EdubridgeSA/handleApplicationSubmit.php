@@ -13,6 +13,11 @@ if (session_status() == PHP_SESSION_NONE) {
 // Include configuration IMMEDIATELY AFTER session start
 require_once 'config.php';
 
+// Security helpers (CSRF, escaping)
+require_once __DIR__ . '/includes/security_helpers.php';
+// Enforce CSRF for this POST-based form handler
+require_csrf();
+
 // NOW you can use CSRF_TOKEN_NAME and other constants
 error_log("=== HANDLE APPLICATION SUBMIT STARTED ===");
 error_log("Session ID: " . session_id());

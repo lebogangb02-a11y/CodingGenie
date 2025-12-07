@@ -6,6 +6,8 @@
 
 require_once 'session_config.php';
 require_once 'config.php';
+require_once __DIR__ . '/includes/security_helpers.php';
+require_once __DIR__ . '/includes/upload_helper.php';
 
 // Check if user is logged in
 if (!isset($_SESSION['student_logged_in']) || $_SESSION['student_logged_in'] !== true) {
@@ -89,20 +91,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['document'])) {
             throw new Exception('Invalid file content. File appears to be corrupted or not a valid document/image.');
         }
         
-        // Create upload directory if it doesn't exist
-        $upload_dir = 'uploads/documents/' . $student_id . '/';
-        if (!is_dir($upload_dir)) {
-            mkdir($upload_dir, 0755, true);
+        // Use centralized upload helper to store file
+        $res = store_uploaded_file($file, 'documents/' . $student_id, ['application/pdf','image/jpeg','image/png'], MAX_FILE_SIZE);
+        if (!$res['success']) {
+            throw new Exception('Failed to save uploaded file: ' . $res['error']);
         }
-        
-        // Generate unique filename
-        $filename = $document_type . '_' . time() . '_' . uniqid() . '.' . $file_extension;
-        $file_path = $upload_dir . $filename;
-        
-        // Move uploaded file
-        if (!move_uploaded_file($file['tmp_name'], $file_path)) {
-            throw new Exception('Failed to save uploaded file.');
-        }
+        $file_path = $res['path'];
         
         // Check if document already exists
         $stmt = $pdo->prepare("SELECT id FROM application_documents WHERE application_id = ? AND document_type = ?");

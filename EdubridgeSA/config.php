@@ -14,8 +14,9 @@ if (basename($_SERVER['PHP_SELF'] ?? '') === 'config.php') {
 
 // Database Configuration - Read from environment where possible
 define('DB_HOST', getenv('DB_HOST') ?: 'localhost');
-define('DB_USER', getenv('DB_USER') ?: 'u839420047_Edubridge');
-define('DB_PASS', getenv('DB_PASS') ?: 'BAs1m@n3');
+// Do NOT keep real credentials in source. Prefer setting DB_USER/DB_PASS via environment.
+define('DB_USER', getenv('DB_USER') ?: '');
+define('DB_PASS', getenv('DB_PASS') ?: '');
 define('DB_NAME', getenv('DB_NAME') ?: 'u839420047_applications');
 
 // Email Settings (non-SMTP)
@@ -39,7 +40,8 @@ define('ALLOWED_FILE_TYPES', ['pdf', 'jpg', 'jpeg', 'png']);
 // Security & Auth Settings
 define('CSRF_TOKEN_NAME', 'csrf_token');
 define('SESSION_TIMEOUT', 1800);  // 30 minutes idle timeout (more secure)
-define('AUTH_SALT', 'edubridge_secure_salt_2024!');  // Custom salt for additional hashing (keep secret)
+// AUTH_SALT should be provided via environment in production
+define('AUTH_SALT', getenv('AUTH_SALT') ?: 'edubridge_secure_salt_2024!');  // fallback for local/dev only
 define('RATE_LIMIT_WINDOW', 900);  // 15 minutes for login attempts
 define('MAX_LOGIN_ATTEMPTS', 5);   // Max failed logins before lockout
 define('LOCKOUT_DURATION', 900);   // 15 minutes lockout

@@ -8,6 +8,12 @@ ini_set('error_log', 'application_error.log');
 require_once 'config.php';
 require_once 'session_config.php';
 
+// Debug-only guard
+if (!defined('DEBUG_MODE') || DEBUG_MODE !== true) {
+    http_response_code(404);
+    exit;
+}
+
 echo "<h1>Application Submission Debug</h1>";
 
 // Check upload directory
@@ -50,7 +56,7 @@ foreach ($subdirs as $subdir) {
         }
     } else {
         echo "<p style='color: green;'>✅ $subdir directory exists.</p>";
-        
+
         // Check if directory is writable
         if (is_writable($dir_path)) {
             echo "<p style='color: green;'>✅ $subdir directory is writable.</p>";
@@ -77,19 +83,19 @@ try {
         ]
     );
     echo "<p style='color: green;'>✅ Database connection successful.</p>";
-    
+
     // Check if applications table exists
     $stmt = $pdo->query("SHOW TABLES LIKE 'applications'");
     if ($stmt->rowCount() > 0) {
         echo "<p style='color: green;'>✅ Applications table exists.</p>";
-        
+
         // Check table structure
         $stmt = $pdo->query("DESCRIBE applications");
         $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
         echo "<p>Table columns: " . implode(", ", $columns) . "</p>";
     } else {
         echo "<p style='color: red;'>❌ Applications table does not exist. Creating it now...</p>";
-        
+
         // Create applications table
         $sql = "CREATE TABLE applications (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -115,7 +121,7 @@ try {
             created_at DATETIME,
             updated_at DATETIME
         )";
-        
+
         try {
             $pdo->exec($sql);
             echo "<p style='color: green;'>✅ Applications table created successfully.</p>";
@@ -123,7 +129,6 @@ try {
             echo "<p style='color: red;'>❌ Failed to create applications table: " . $e->getMessage() . "</p>";
         }
     }
-    
 } catch (PDOException $e) {
     echo "<p style='color: red;'>❌ Database connection failed: " . $e->getMessage() . "</p>";
 }
@@ -133,7 +138,7 @@ echo "<h2>4. Checking Form Handler</h2>";
 $handler_file = 'handle-student-application.php';
 if (file_exists($handler_file)) {
     echo "<p style='color: green;'>✅ Form handler file exists.</p>";
-    
+
     // Check if the file is readable
     if (is_readable($handler_file)) {
         echo "<p style='color: green;'>✅ Form handler file is readable.</p>";
@@ -191,15 +196,29 @@ echo "<p><a href='student-apply.php' style='display: inline-block; padding: 10px
 ?>
 
 <style>
-body {
-    font-family: Arial, sans-serif;
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 20px;
-    line-height: 1.6;
-}
-h1 { color: #2c3e50; }
-h2 { color: #34495e; margin-top: 20px; }
-a { color: #3498db; text-decoration: none; }
-a:hover { text-decoration: underline; }
+    body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        line-height: 1.6;
+    }
+
+    h1 {
+        color: #2c3e50;
+    }
+
+    h2 {
+        color: #34495e;
+        margin-top: 20px;
+    }
+
+    a {
+        color: #3498db;
+        text-decoration: none;
+    }
+
+    a:hover {
+        text-decoration: underline;
+    }
 </style>

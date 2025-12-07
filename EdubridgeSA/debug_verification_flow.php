@@ -13,7 +13,16 @@ if (file_exists(__DIR__ . '/config_application.php')) {
     require_once __DIR__ . '/config_application.php';
 }
 
-function h($v) { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
+// Only allow debug execution when DEBUG_MODE is enabled
+if (!defined('DEBUG_MODE') || DEBUG_MODE !== true) {
+    http_response_code(404);
+    exit;
+}
+
+function h($v)
+{
+    return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
+}
 
 $report = [
     'environment' => [
@@ -121,56 +130,123 @@ if (isset($_GET['format']) && strtolower($_GET['format']) === 'json') {
 }
 
 // HTML output
-?><!DOCTYPE html>
+?>
+<!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Verification Debug</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Poppins', sans-serif; background: #f5f7fa; padding: 24px; }
-        .card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); margin-bottom: 16px; }
-        h2 { margin: 0 0 12px; font-size: 18px; }
-        code { background: #eef; padding: 2px 4px; border-radius: 4px; }
-        .ok { color: #2e7d32; font-weight: 600; }
-        .warn { color: #f57c00; font-weight: 600; }
-        .err { color: #c62828; font-weight: 600; }
-        .kv { display: grid; grid-template-columns: 240px 1fr; gap: 8px; }
-        .kv div { padding: 4px 0; border-bottom: 1px dashed #eee; }
-        a.btn { display: inline-block; padding: 8px 12px; background: #1a5fb4; color: #fff; text-decoration: none; border-radius: 6px; margin-right: 8px; }
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: #f5f7fa;
+            padding: 24px;
+        }
+
+        .card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+            margin-bottom: 16px;
+        }
+
+        h2 {
+            margin: 0 0 12px;
+            font-size: 18px;
+        }
+
+        code {
+            background: #eef;
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+
+        .ok {
+            color: #2e7d32;
+            font-weight: 600;
+        }
+
+        .warn {
+            color: #f57c00;
+            font-weight: 600;
+        }
+
+        .err {
+            color: #c62828;
+            font-weight: 600;
+        }
+
+        .kv {
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            gap: 8px;
+        }
+
+        .kv div {
+            padding: 4px 0;
+            border-bottom: 1px dashed #eee;
+        }
+
+        a.btn {
+            display: inline-block;
+            padding: 8px 12px;
+            background: #1a5fb4;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 6px;
+            margin-right: 8px;
+        }
     </style>
-    </head>
+</head>
+
 <body>
     <div class="card">
         <h2>Environment</h2>
         <div class="kv">
-            <div>PHP Version</div><div><?php echo h($report['environment']['php_version']); ?></div>
-            <div>DB Host</div><div><?php echo h($report['environment']['db_host']); ?></div>
-            <div>DB Name</div><div><?php echo h($report['environment']['db_name']); ?></div>
-            <div>BASE_URL</div><div><?php echo h($report['environment']['base_url']); ?></div>
-            <div>Minimal Template</div><div><?php echo isset($report['environment']['use_minimal_verification_template']) ? ( $report['environment']['use_minimal_verification_template'] ? 'true' : 'false' ) : 'n/a'; ?></div>
+            <div>PHP Version</div>
+            <div><?php echo h($report['environment']['php_version']); ?></div>
+            <div>DB Host</div>
+            <div><?php echo h($report['environment']['db_host']); ?></div>
+            <div>DB Name</div>
+            <div><?php echo h($report['environment']['db_name']); ?></div>
+            <div>BASE_URL</div>
+            <div><?php echo h($report['environment']['base_url']); ?></div>
+            <div>Minimal Template</div>
+            <div><?php echo isset($report['environment']['use_minimal_verification_template']) ? ($report['environment']['use_minimal_verification_template'] ? 'true' : 'false') : 'n/a'; ?></div>
         </div>
     </div>
 
     <div class="card">
         <h2>Files</h2>
         <div class="kv">
-            <div>verify-email.php</div><div><?php echo $report['files']['verify_email'] ? '<span class="ok">present</span>' : '<span class="err">missing</span>'; ?></div>
-            <div>verify-redirect.php</div><div><?php echo $report['files']['verify_redirect'] ? '<span class="ok">present</span>' : '<span class="warn">missing</span>'; ?></div>
-            <div>email-templates.php</div><div><?php echo $report['files']['email_templates'] ? '<span class="ok">present</span>' : '<span class="warn">missing</span>'; ?></div>
-            <div>email_functions.php</div><div><?php echo $report['files']['email_functions'] ? '<span class="ok">present</span>' : '<span class="warn">missing</span>'; ?></div>
+            <div>verify-email.php</div>
+            <div><?php echo $report['files']['verify_email'] ? '<span class="ok">present</span>' : '<span class="err">missing</span>'; ?></div>
+            <div>verify-redirect.php</div>
+            <div><?php echo $report['files']['verify_redirect'] ? '<span class="ok">present</span>' : '<span class="warn">missing</span>'; ?></div>
+            <div>email-templates.php</div>
+            <div><?php echo $report['files']['email_templates'] ? '<span class="ok">present</span>' : '<span class="warn">missing</span>'; ?></div>
+            <div>email_functions.php</div>
+            <div><?php echo $report['files']['email_functions'] ? '<span class="ok">present</span>' : '<span class="warn">missing</span>'; ?></div>
         </div>
     </div>
 
     <div class="card">
         <h2>Users Table Schema</h2>
         <div class="kv">
-            <div>Has status</div><div><?php echo $report['schema']['has_status'] ? '<span class="ok">yes</span>' : '<span class="err">no</span>'; ?></div>
-            <div>Has email_verified</div><div><?php echo $report['schema']['has_email_verified'] ? '<span class="ok">yes</span>' : '<span class="err">no</span>'; ?></div>
-            <div>Has verification_token</div><div><?php echo $report['schema']['has_verification_token'] ? '<span class="ok">yes</span>' : '<span class="err">no</span>'; ?></div>
-            <div>Has verification_sent_at</div><div><?php echo $report['schema']['has_verification_sent_at'] ? '<span class="ok">yes</span>' : '<span class="warn">no</span>'; ?></div>
-            <div>Has verified_at</div><div><?php echo $report['schema']['has_verified_at'] ? '<span class="ok">yes</span>' : '<span class="warn">no</span>'; ?></div>
+            <div>Has status</div>
+            <div><?php echo $report['schema']['has_status'] ? '<span class="ok">yes</span>' : '<span class="err">no</span>'; ?></div>
+            <div>Has email_verified</div>
+            <div><?php echo $report['schema']['has_email_verified'] ? '<span class="ok">yes</span>' : '<span class="err">no</span>'; ?></div>
+            <div>Has verification_token</div>
+            <div><?php echo $report['schema']['has_verification_token'] ? '<span class="ok">yes</span>' : '<span class="err">no</span>'; ?></div>
+            <div>Has verification_sent_at</div>
+            <div><?php echo $report['schema']['has_verification_sent_at'] ? '<span class="ok">yes</span>' : '<span class="warn">no</span>'; ?></div>
+            <div>Has verified_at</div>
+            <div><?php echo $report['schema']['has_verified_at'] ? '<span class="ok">yes</span>' : '<span class="warn">no</span>'; ?></div>
         </div>
         <div style="margin-top:8px;">
             <small>Columns found: <?php echo h(implode(', ', $report['schema']['users_columns'])); ?></small>
@@ -180,8 +256,10 @@ if (isset($_GET['format']) && strtolower($_GET['format']) === 'json') {
     <div class="card">
         <h2>Users Summary</h2>
         <div class="kv">
-            <div>Pending w/ token</div><div><?php echo (int)$report['users_summary']['pending_with_token']; ?></div>
-            <div>Active & verified</div><div><?php echo (int)$report['users_summary']['verified_active']; ?></div>
+            <div>Pending w/ token</div>
+            <div><?php echo (int)$report['users_summary']['pending_with_token']; ?></div>
+            <div>Active & verified</div>
+            <div><?php echo (int)$report['users_summary']['verified_active']; ?></div>
         </div>
     </div>
 
@@ -190,7 +268,8 @@ if (isset($_GET['format']) && strtolower($_GET['format']) === 'json') {
         <?php if ($report['target_user']): ?>
             <div class="kv">
                 <?php foreach ($report['target_user'] as $k => $v): ?>
-                    <div><?php echo h($k); ?></div><div><?php echo h($v); ?></div>
+                    <div><?php echo h($k); ?></div>
+                    <div><?php echo h($v); ?></div>
                 <?php endforeach; ?>
             </div>
             <div style="margin-top:12px;">
@@ -226,4 +305,5 @@ if (isset($_GET['format']) && strtolower($_GET['format']) === 'json') {
         </ul>
     </div>
 </body>
+
 </html>
