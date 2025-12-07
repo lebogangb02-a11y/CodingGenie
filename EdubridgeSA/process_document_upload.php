@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Document Upload Processing Script
  * EduBridge SA - University Application System
@@ -12,13 +13,15 @@ require_once __DIR__ . '/includes/security_helpers.php';
 require_once __DIR__ . '/includes/upload_helper.php';
 
 // Function to sanitize input data
-function sanitizeInput($data) {
+function sanitizeInput($data)
+{
     if ($data === null) return null;
     return htmlspecialchars(strip_tags(trim($data)), ENT_QUOTES, 'UTF-8');
 }
 
 // Function to handle file upload
-function handleDocumentUpload($fileInputName, $applicationId, $docType) {
+function handleDocumentUpload($fileInputName, $applicationId, $docType)
+{
     // Delegate to centralized upload helper which performs finfo checks and size limits
     if (!isset($_FILES[$fileInputName])) {
         throw new Exception("No file was uploaded");
@@ -35,19 +38,20 @@ function handleDocumentUpload($fileInputName, $applicationId, $docType) {
 }
 
 // Function to send email notification
-function sendEmailNotification($to, $subject, $message, $applicationId, $emailType) {
+function sendEmailNotification($to, $subject, $message, $applicationId, $emailType)
+{
     global $pdo;
-    
+
     try {
         // Email headers
         $headers = "MIME-Version: 1.0" . "\r\n";
         $headers .= "Content-type:text/html;charset=UTF-8" . "\r\n";
         $headers .= "From: " . FROM_NAME . " <" . FROM_EMAIL . ">" . "\r\n";
         $headers .= "Reply-To: " . REPLY_TO_NAME . " <" . REPLY_TO_EMAIL . ">" . "\r\n";
-        
+
         // Send email
         $emailSent = mail($to, $subject, $message, $headers);
-        
+
         // Log email attempt
         $logSql = "INSERT INTO email_logs (application_id, email_type, recipient_email, subject, status, error_message) 
                    VALUES (?, ?, ?, ?, ?, ?)";
@@ -60,9 +64,8 @@ function sendEmailNotification($to, $subject, $message, $applicationId, $emailTy
             $emailSent ? 'sent' : 'failed',
             $emailSent ? null : 'Mail function returned false'
         ]);
-        
+
         return $emailSent;
-        
     } catch (Exception $e) {
         // Log email error
         $logSql = "INSERT INTO email_logs (application_id, email_type, recipient_email, subject, status, error_message) 
@@ -76,7 +79,7 @@ function sendEmailNotification($to, $subject, $message, $applicationId, $emailTy
             'failed',
             $e->getMessage()
         ]);
-        
+
         error_log("Email sending failed: " . $e->getMessage());
         return false;
     }
@@ -127,41 +130,41 @@ try {
     $stmt = $pdo->prepare($sql);
     $stmt->execute([$applicationId]);
     $application = $stmt->fetch(PDO::FETCH_ASSOC);
-    
+
     if (!$application) {
         $_SESSION['form_message'] = 'Application not found.';
         $_SESSION['form_message_type'] = 'error';
         header('Location: apply_improved.php');
         exit;
     }
-    
+
     // Check if document type already exists
     $checkSql = "SELECT id FROM documents WHERE application_id = ? AND doc_type = ?";
     $checkStmt = $pdo->prepare($checkSql);
     $checkStmt->execute([$applicationId, $docType]);
-    
+
     if ($checkStmt->fetch()) {
         $_SESSION['form_message'] = 'This document type has already been uploaded.';
         $_SESSION['form_message_type'] = 'warning';
         header('Location: upload-documents.php?app_id=' . $applicationId . '&token=' . $token);
         exit;
     }
-    
+
     // Handle file upload
     $filePath = handleDocumentUpload('document', $applicationId, $docType);
-    
+
     // Insert document record
     $insertSql = "INSERT INTO documents (application_id, doc_type, file_path) VALUES (?, ?, ?)";
     $insertStmt = $pdo->prepare($insertSql);
     $insertStmt->execute([$applicationId, $docType, $filePath]);
-    
+
     // Check if all required documents are uploaded (proof_of_residence is optional)
     $requiredDocs = ['id_document', 'matric_certificate', 'academic_transcript'];
     $uploadedSql = "SELECT DISTINCT doc_type FROM documents WHERE application_id = ?";
     $uploadedStmt = $pdo->prepare($uploadedSql);
     $uploadedStmt->execute([$applicationId]);
     $uploadedDocTypes = $uploadedStmt->fetchAll(PDO::FETCH_COLUMN);
-    
+
     $allUploaded = true;
     foreach ($requiredDocs as $requiredDoc) {
         if (!in_array($requiredDoc, $uploadedDocTypes)) {
@@ -169,16 +172,16 @@ try {
             break;
         }
     }
-    
+
     // Update application status if all documents are uploaded
     if ($allUploaded && $application['status'] === 'Submitted (without docs)') {
         $updateSql = "UPDATE applications SET status = 'Submitted (with docs)' WHERE id = ?";
         $updateStmt = $pdo->prepare($updateSql);
         $updateStmt->execute([$applicationId]);
-        
+
         // Generate application reference
         $applicationRef = 'EBS-' . str_pad($applicationId, 6, '0', STR_PAD_LEFT);
-        
+
         // Send completion email
         $completionSubject = 'Application Complete – Thank You';
         $completionMessage = "
@@ -242,20 +245,19 @@ try {
         </body>
         </html>
         ";
-        
+
         sendEmailNotification($application['email'], $completionSubject, $completionMessage, $applicationId, 'application_complete');
-        
+
         $_SESSION['form_message'] = 'Document uploaded successfully! Your application is now complete.';
         $_SESSION['form_message_type'] = 'success';
     } else {
         $_SESSION['form_message'] = 'Document uploaded successfully!';
         $_SESSION['form_message_type'] = 'success';
     }
-    
+
     // Redirect back to upload page
     header('Location: upload-documents.php?app_id=' . $applicationId . '&token=' . $token);
     exit;
-    
 } catch (Exception $e) {
     error_log("Error in process_document_upload.php: " . $e->getMessage());
     $_SESSION['form_message'] = 'Upload failed: ' . $e->getMessage();
@@ -263,4 +265,3 @@ try {
     header('Location: upload-documents.php?app_id=' . $applicationId . '&token=' . $token);
     exit;
 }
-?>

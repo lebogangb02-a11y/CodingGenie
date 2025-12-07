@@ -1,6 +1,7 @@
 <?php
 require_once 'config.php';
 require_once 'session_config.php';
+require_once __DIR__ . '/includes/upload_helper.php';
 
 // Check if user is logged in
 if (!isLoggedIn()) {
@@ -24,21 +25,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $message_type = 'error';
     } else {
         try {
-            $pdo = new PDO(
-                "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4",
-                DB_USER,
-                DB_PASS,
-                [
-                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                    PDO::ATTR_EMULATE_PREPARES => false,
-                ]
-            );
-
             $action = $_POST['action'] ?? '';
 
             if ($action === 'update_preferences') {
-                // Handle preferences update
                 $email_notifications = isset($_POST['email_notifications']) ? 1 : 0;
                 $sms_notifications = isset($_POST['sms_notifications']) ? 1 : 0;
                 $newsletter_subscription = isset($_POST['newsletter_subscription']) ? 1 : 0;
@@ -47,9 +36,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $language_preference = $_POST['language_preference'] ?? 'en';
                 $timezone = $_POST['timezone'] ?? 'Africa/Johannesburg';
 
-                // Update user preferences
-                $stmt = $pdo->prepare("
-                    UPDATE users SET 
+                $stmt = $pdo->prepare(
+                    "UPDATE users SET 
                         email_notifications = ?,
                         sms_notifications = ?,
                         newsletter_subscription = ?,
@@ -58,8 +46,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         language_preference = ?,
                         timezone = ?,
                         updated_at = NOW()
-                    WHERE student_id = ?
-                ");
+                    WHERE student_id = ?"
+                );
                 $stmt->execute([
                     $email_notifications,
                     $sms_notifications,
@@ -74,85 +62,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $message = 'Your preferences have been updated successfully.';
                 $message_type = 'success';
             } elseif ($action === 'upload_profile_picture') {
-                // Handle profile picture upload
+                // Handle profile picture upload via centralized helper
                 if (isset($_FILES['profile_picture']) && $_FILES['profile_picture']['error'] === UPLOAD_ERR_OK) {
-                    $file = $_FILES['profile_picture'];
-                    $allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-                    $max_size = 5 * 1024 * 1024; // 5MB
+                    $res = store_uploaded_file(
+                        $_FILES['profile_picture'],
+                        'profile_pictures',
+                        ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+                        5 * 1024 * 1024
+                    );
 
-                    if (!in_array($file['type'], $allowed_types)) {
-                        $message = 'Invalid file type. Please upload a JPEG, PNG, GIF, or WebP image.';
-                        $message_type = 'error';
-                    } elseif ($file['size'] > $max_size) {
-                        $message = 'File too large. Please upload an image smaller than 5MB.';
+                    if (!$res['success']) {
+                        $message = 'Upload failed: ' . h($res['error']);
                         $message_type = 'error';
                     } else {
-                        // Create uploads directory if it doesn't exist
-                        $upload_dir = 'uploads/profile_pictures/';
-                        if (!is_dir($upload_dir)) {
-                            mkdir($upload_dir, 0755, true);
+                        $filepath = $res['path'];
+                        $relativePath = str_replace(realpath(__DIR__) . DIRECTORY_SEPARATOR, '', $filepath);
+
+                        $stmt = $pdo->prepare("SELECT profile_picture FROM users WHERE student_id = ?");
+                        $stmt->execute([$_SESSION['student_id']]);
+                        $current_user = $stmt->fetch();
+
+                        if ($current_user && !empty($current_user['profile_picture']) && file_exists($current_user['profile_picture'])) {
+                            @unlink($current_user['profile_picture']);
                         }
 
-                        // Generate unique filename
-                        $file_extension = pathinfo($file['name'], PATHINFO_EXTENSION);
-                        $filename = $_SESSION['student_id'] . '_' . time() . '.' . $file_extension;
-                        $filepath = $upload_dir . $filename;
+                        $stmt = $pdo->prepare("UPDATE users SET profile_picture = ?, updated_at = NOW() WHERE student_id = ?");
+                        $stmt->execute([$relativePath, $_SESSION['student_id']]);
 
-                        if (move_uploaded_file($file['tmp_name'], $filepath)) {
-                            // Get current profile picture to delete old one
-                            $stmt = $pdo->prepare("SELECT profile_picture FROM users WHERE student_id = ?");
-                            $stmt->execute([$_SESSION['student_id']]);
-                            $current_user = $stmt->fetch();
-
-                            // Delete old profile picture if it exists
-                            if ($current_user && $current_user['profile_picture'] && file_exists($current_user['profile_picture'])) {
-                                unlink($current_user['profile_picture']);
-                            }
-
-                            // Update database with new profile picture path
-                            $stmt = $pdo->prepare("
-                                UPDATE users SET 
-                                    profile_picture = ?,
-                                    updated_at = NOW()
-                                WHERE student_id = ?
-                            ");
-                            $stmt->execute([$filepath, $_SESSION['student_id']]);
-
-                            $message = 'Profile picture updated successfully.';
-                            $message_type = 'success';
-                        } else {
-                            $message = 'Failed to upload profile picture. Please try again.';
-                            $message_type = 'error';
-                        }
+                        $message = 'Profile picture updated successfully.';
+                        $message_type = 'success';
                     }
                 } else {
                     $message = 'Please select a valid image file.';
                     $message_type = 'error';
                 }
             } elseif ($action === 'remove_profile_picture') {
-                // Handle profile picture removal
                 $stmt = $pdo->prepare("SELECT profile_picture FROM users WHERE student_id = ?");
                 $stmt->execute([$_SESSION['student_id']]);
                 $current_user = $stmt->fetch();
 
                 if ($current_user && $current_user['profile_picture'] && file_exists($current_user['profile_picture'])) {
-                    unlink($current_user['profile_picture']);
+                    @unlink($current_user['profile_picture']);
                 }
 
-                $stmt = $pdo->prepare("
-                    UPDATE users SET 
-                        profile_picture = NULL,
-                        updated_at = NOW()
-                    WHERE student_id = ?
-                ");
+                $stmt = $pdo->prepare("UPDATE users SET profile_picture = NULL, updated_at = NOW() WHERE student_id = ?");
                 $stmt->execute([$_SESSION['student_id']]);
 
                 $message = 'Profile picture removed successfully.';
                 $message_type = 'success';
             }
-
-            // Keep CSRF token stable across actions to avoid mismatches
-
         } catch (PDOException $e) {
             $message = 'Database error occurred. Please try again.';
             $message_type = 'error';

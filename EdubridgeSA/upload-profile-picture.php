@@ -71,7 +71,7 @@ $file_size = $file['size'];
 
 // Validate file size (2MB max) and use centralized helper
 $max_size = 2 * 1024 * 1024; // 2MB in bytes
-$res = store_uploaded_file($file, 'profile_pictures', ['image/jpeg','image/png','image/webp','image/jpg'], $max_size);
+$res = store_uploaded_file($file, 'profile_pictures', ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'], $max_size);
 if (!$res['success']) {
     echo json_encode(['success' => false, 'message' => 'Upload failed: ' . h($res['error'])]);
     exit();
@@ -87,20 +87,20 @@ $file_size = $res['size'];
 try {
     // Start database transaction
     $pdo->beginTransaction();
-    
+
     // Get current profile picture to delete old one
     $stmt = $pdo->prepare("SELECT profile_picture FROM users WHERE id = ?");
     $stmt->execute([$user_id]);
     $current_picture = $stmt->fetchColumn();
-    
+
     // Update user's profile picture in database
     $stmt = $pdo->prepare("UPDATE users SET profile_picture = ?, profile_updated_at = NOW() WHERE id = ?");
     $stmt->execute([$new_filename, $user_id]);
-    
+
     // Mark previous profile pictures as not current
     $stmt = $pdo->prepare("UPDATE profile_picture_uploads SET is_current = FALSE WHERE user_id = ?");
     $stmt->execute([$user_id]);
-    
+
     // Insert new profile picture record
     $stmt = $pdo->prepare("
         INSERT INTO profile_picture_uploads 
@@ -115,42 +115,40 @@ try {
         $file_size,
         $mime_type
     ]);
-    
+
     // Commit transaction
     $pdo->commit();
-    
+
     // Delete old profile picture file (but keep the first one as backup)
     if ($current_picture && $current_picture !== $new_filename && file_exists($upload_dir . $current_picture)) {
         // Check if this is not the user's first profile picture
         $stmt = $pdo->prepare("SELECT COUNT(*) FROM profile_picture_uploads WHERE user_id = ? AND is_current = FALSE");
         $stmt->execute([$user_id]);
         $old_pictures_count = $stmt->fetchColumn();
-        
+
         if ($old_pictures_count > 0) {
             unlink($upload_dir . $current_picture);
         }
     }
-    
+
     // Update session if needed
     $_SESSION['profile_picture'] = $new_filename;
-    
+
     echo json_encode([
-        'success' => true, 
+        'success' => true,
         'message' => 'Profile picture updated successfully',
         'filename' => $new_filename,
         'file_path' => $file_path
     ]);
-    
 } catch (Exception $e) {
     // Rollback transaction
     $pdo->rollBack();
-    
+
     // Delete uploaded file if database update failed
     if (file_exists($file_path)) {
         unlink($file_path);
     }
-    
+
     error_log("Profile picture upload error: " . $e->getMessage());
     echo json_encode(['success' => false, 'message' => 'Database error occurred']);
 }
-?>

@@ -138,45 +138,54 @@ try {
         $total_steps = 4;
         $completed_steps = 0;
 
-        // Step 1: Application record exists
-        $stmt = $pdo->prepare("SELECT id, application_status FROM applications WHERE id = ?");
+        // OPTIMIZED: Fetch all progress data in one query using JOINs + GROUP_CONCAT for documents
+        $stmt = $pdo->prepare("
+            SELECT 
+                a.id as app_id,
+                a.application_status,
+                COALESCE(pg.full_name, '') as pg_full_name,
+                COALESCE(uc.university_1, '') as university_1,
+                GROUP_CONCAT(DISTINCT ad.document_type) as document_types
+            FROM applications a
+            LEFT JOIN parent_guardian_details pg ON pg.application_id = a.id
+            LEFT JOIN university_choices uc ON uc.application_id = a.id
+            LEFT JOIN application_documents ad ON ad.application_id = a.id
+            WHERE a.id = ?
+            GROUP BY a.id
+            LIMIT 1
+        ");
         $stmt->execute([$application_id]);
-        $application = $stmt->fetch(PDO::FETCH_ASSOC);
-        if ($application) {
-            $completed_steps++;
-        }
+        $progress_row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        // Step 2: Parent/guardian details exist
-        $stmt = $pdo->prepare("SELECT full_name FROM parent_guardian_details WHERE application_id = ? LIMIT 1");
-        $stmt->execute([$application_id]);
-        $pg = $stmt->fetch(PDO::FETCH_ASSOC);
-        if ($pg && !empty($pg['full_name'])) {
-            $completed_steps++;
-        }
+        // Initialize step counter
+        $completed_steps = 1; // Application record exists (we have the data)
 
-        // Step 3: University choices present
-        $stmt = $pdo->prepare("SELECT university_1 FROM university_choices WHERE application_id = ? LIMIT 1");
-        $stmt->execute([$application_id]);
-        $uc = $stmt->fetch(PDO::FETCH_ASSOC);
-        if ($uc && !empty($uc['university_1'])) {
-            $completed_steps++;
-        }
+        // Parse the aggregated data
+        if ($progress_row) {
+            $application = [
+                'id' => $progress_row['app_id'],
+                'application_status' => $progress_row['application_status']
+            ];
 
-        // Step 4: Required documents uploaded
-        $stmt = $pdo->prepare("SELECT document_type FROM application_documents WHERE application_id = ?");
-        $stmt->execute([$application_id]);
-        $docs = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        $uploaded_types = [];
-        foreach ($docs as $doc) {
-            if (!empty($doc['document_type'])) {
-                $uploaded_types[] = $doc['document_type'];
+            // Step 2: Check parent/guardian
+            if (!empty($progress_row['pg_full_name'])) {
+                $completed_steps++;
             }
-        }
-        $required_document_types = ['certified_id', 'academic_results'];
-        $required_uploaded = array_intersect($required_document_types, $uploaded_types);
-        $has_all_required_docs = count($required_uploaded) === count($required_document_types);
-        if ($has_all_required_docs) {
-            $completed_steps++;
+
+            // Step 3: Check university choices
+            if (!empty($progress_row['university_1'])) {
+                $completed_steps++;
+            }
+
+            // Step 4: Check required documents
+            $document_types = !empty($progress_row['document_types']) ?
+                array_filter(array_map('trim', explode(',', $progress_row['document_types']))) : [];
+            $required_document_types = ['certified_id', 'academic_results'];
+            $required_uploaded = array_intersect($required_document_types, $document_types);
+            $has_all_required_docs = count($required_uploaded) === count($required_document_types);
+            if ($has_all_required_docs) {
+                $completed_steps++;
+            }
         }
 
         $completion_percentage = ($total_steps > 0) ? round(($completed_steps / $total_steps) * 100) : 0;

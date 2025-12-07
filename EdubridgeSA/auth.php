@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Enhanced Authentication System for EduBridge SA
  * Comprehensive login/logout functions with security and multi-device support
@@ -13,7 +14,8 @@ require_once 'config.php';
 /**
  * Get PDO connection (lazy-loaded, shared) - SINGLE DEFINITION
  */
-function getPDO() {
+function getPDO()
+{
     global $pdo;
     if (!isset($pdo)) {
         try {
@@ -41,7 +43,8 @@ function getPDO() {
 /**
  * Enhanced login function with comprehensive security - SINGLE DEFINITION
  */
-function authenticateUser($email, $password, $rememberMe = false) {
+function authenticateUser($email, $password, $rememberMe = false)
+{
     $pdo = getPDO();
     if (!$pdo) {
         return [
@@ -50,7 +53,7 @@ function authenticateUser($email, $password, $rememberMe = false) {
             'error_code' => 'DB_ERROR'
         ];
     }
-    
+
     try {
         if (empty($email) || empty($password)) {
             return [
@@ -59,7 +62,7 @@ function authenticateUser($email, $password, $rememberMe = false) {
                 'error_code' => 'MISSING_CREDENTIALS'
             ];
         }
-        
+
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             return [
                 'success' => false,
@@ -67,7 +70,7 @@ function authenticateUser($email, $password, $rememberMe = false) {
                 'error_code' => 'INVALID_EMAIL'
             ];
         }
-        
+
         $rateLimitResult = checkRateLimit($email);
         if (!$rateLimitResult['allowed']) {
             return [
@@ -77,7 +80,7 @@ function authenticateUser($email, $password, $rememberMe = false) {
                 'retry_after' => $rateLimitResult['retry_after']
             ];
         }
-        
+
         $stmt = $pdo->prepare("
             SELECT id, student_id, first_name, last_name, email, password_hash, 
                    status, login_attempts, locked_until, 
@@ -88,7 +91,7 @@ function authenticateUser($email, $password, $rememberMe = false) {
         ");
         $stmt->execute([$email]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
-        
+
         if (!$user) {
             recordFailedLogin($email, 'USER_NOT_FOUND');
             return [
@@ -97,13 +100,13 @@ function authenticateUser($email, $password, $rememberMe = false) {
                 'error_code' => 'INVALID_CREDENTIALS'
             ];
         }
-        
+
         $statusCheck = checkAccountStatus($user);
         if (!$statusCheck['allowed']) {
             recordFailedLogin($email, $statusCheck['error_code']);
             return $statusCheck;
         }
-        
+
         if (!password_verify($password, $user['password_hash'])) {
             recordFailedLogin($email, 'INVALID_PASSWORD');
             incrementFailedAttempts($user['id']);
@@ -113,12 +116,12 @@ function authenticateUser($email, $password, $rememberMe = false) {
                 'error_code' => 'INVALID_CREDENTIALS'
             ];
         }
-        
+
         resetFailedAttempts($user['id']);
         recordSuccessfulLogin($user['id']);
         setLoginSession($user, $rememberMe);
         updateLastLogin($user['id']);
-        
+
         return [
             'success' => true,
             'message' => 'Login successful.',
@@ -131,7 +134,6 @@ function authenticateUser($email, $password, $rememberMe = false) {
             ],
             'redirect_url' => determineRedirectUrl($user)
         ];
-        
     } catch (PDOException $e) {
         error_log("Database error in authenticate:User  " . $e->getMessage());
         return [
@@ -152,7 +154,8 @@ function authenticateUser($email, $password, $rememberMe = false) {
 /**
  * Admin authentication with custom hashing
  */
-function authenticateAdmin($username, $password, $rememberMe = false) {
+function authenticateAdmin($username, $password, $rememberMe = false)
+{
     $pdo = getPDO();
     if (!$pdo) {
         return [
@@ -161,7 +164,7 @@ function authenticateAdmin($username, $password, $rememberMe = false) {
             'error_code' => 'DB_ERROR'
         ];
     }
-    
+
     try {
         if (empty($username) || empty($password)) {
             return [
@@ -170,7 +173,7 @@ function authenticateAdmin($username, $password, $rememberMe = false) {
                 'error_code' => 'MISSING_CREDENTIALS'
             ];
         }
-        
+
         $rateLimitResult = checkRateLimit($username);
         if (!$rateLimitResult['allowed']) {
             return [
@@ -180,7 +183,7 @@ function authenticateAdmin($username, $password, $rememberMe = false) {
                 'retry_after' => $rateLimitResult['retry_after']
             ];
         }
-        
+
         // Look for admin in admins table
         $stmt = $pdo->prepare("
             SELECT id, name, username, email, role, password_hash 
@@ -189,7 +192,7 @@ function authenticateAdmin($username, $password, $rememberMe = false) {
         ");
         $stmt->execute([$username, $username]);
         $admin = $stmt->fetch();
-        
+
         if (!$admin) {
             recordFailedLogin($username, 'ADMIN_NOT_FOUND');
             return [
@@ -198,7 +201,7 @@ function authenticateAdmin($username, $password, $rememberMe = false) {
                 'error_code' => 'INVALID_CREDENTIALS'
             ];
         }
-        
+
         // Prefer modern password_verify(). Support legacy SHA256 hashes by upgrading them.
         $storedHash = $admin['password_hash'] ?? '';
         $isAuthenticated = false;
@@ -250,7 +253,6 @@ function authenticateAdmin($username, $password, $rememberMe = false) {
                 'error_code' => 'INVALID_CREDENTIALS'
             ];
         }
-        
     } catch (PDOException $e) {
         error_log("Database error in authenticateAdmin: " . $e->getMessage());
         return [
@@ -271,13 +273,14 @@ function authenticateAdmin($username, $password, $rememberMe = false) {
 /**
  * Universal authentication function that tries both student and admin
  */
-function universalAuthenticate($identifier, $password, $rememberMe = false) {
+function universalAuthenticate($identifier, $password, $rememberMe = false)
+{
     // First try admin authentication
     $adminResult = authenticateAdmin($identifier, $password, $rememberMe);
     if ($adminResult['success']) {
         return $adminResult;
     }
-    
+
     // If admin auth fails and identifier looks like an email, try student auth
     if (filter_var($identifier, FILTER_VALIDATE_EMAIL)) {
         $studentResult = authenticateUser($identifier, $password, $rememberMe);
@@ -285,7 +288,7 @@ function universalAuthenticate($identifier, $password, $rememberMe = false) {
             return $studentResult;
         }
     }
-    
+
     // Both failed, return the most specific error
     return [
         'success' => false,
@@ -297,7 +300,8 @@ function universalAuthenticate($identifier, $password, $rememberMe = false) {
 /**
  * Simple login wrapper (for backward compatibility) - SINGLE DEFINITION
  */
-function loginUser($email, $password) {
+function loginUser($email, $password)
+{
     $result = authenticateUser($email, $password);
     if ($result['success']) {
         return ['success' => true];
@@ -308,12 +312,13 @@ function loginUser($email, $password) {
 /**
  * Check account status and restrictions - SINGLE DEFINITION
  */
-function checkAccountStatus($user) {
+function checkAccountStatus($user)
+{
     $pdo = getPDO();
     if (!$pdo) {
         return ['allowed' => false, 'success' => false, 'message' => 'System unavailable.', 'error_code' => 'DB_ERROR'];
     }
-    
+
     if ($user['locked_until'] && strtotime($user['locked_until']) > time()) {
         $lockTime = strtotime($user['locked_until']);
         $remainingTime = $lockTime - time();
@@ -326,7 +331,7 @@ function checkAccountStatus($user) {
             'retry_after' => $remainingTime
         ];
     }
-    
+
     if (!$user['email_verified']) {
         return [
             'allowed' => false,
@@ -336,7 +341,7 @@ function checkAccountStatus($user) {
             'redirect_url' => 'email-verification-pending.php'
         ];
     }
-    
+
     switch ($user['status']) {
         case 'pending':
             return [
@@ -367,17 +372,18 @@ function checkAccountStatus($user) {
 /**
  * Rate limiting to prevent brute force attacks - SINGLE DEFINITION
  */
-function checkRateLimit($email) {
+function checkRateLimit($email)
+{
     $pdo = getPDO();
     if (!$pdo) {
         return ['allowed' => true];
     }
-    
+
     try {
         $ip = getClientIP();
         $timeWindow = 900; // 15 minutes
         $maxAttempts = 5;
-        
+
         $stmt = $pdo->prepare("
             SELECT COUNT(*) as attempts 
             FROM login_attempts 
@@ -387,7 +393,7 @@ function checkRateLimit($email) {
         ");
         $stmt->execute([$ip, $timeWindow]);
         $ipAttempts = $stmt->fetchColumn();
-        
+
         $stmt = $pdo->prepare("
             SELECT COUNT(*) as attempts 
             FROM login_attempts 
@@ -397,7 +403,7 @@ function checkRateLimit($email) {
         ");
         $stmt->execute([$email, $timeWindow]);
         $emailAttempts = $stmt->fetchColumn();
-        
+
         if ($ipAttempts >= $maxAttempts || $emailAttempts >= $maxAttempts) {
             return [
                 'allowed' => false,
@@ -405,9 +411,8 @@ function checkRateLimit($email) {
                 'retry_after' => $timeWindow
             ];
         }
-        
+
         return ['allowed' => true];
-        
     } catch (PDOException $e) {
         error_log("Database error in checkRateLimit: " . $e->getMessage());
         return ['allowed' => true];
@@ -417,10 +422,11 @@ function checkRateLimit($email) {
 /**
  * Record failed login attempt - SINGLE DEFINITION
  */
-function recordFailedLogin($email, $reason) {
+function recordFailedLogin($email, $reason)
+{
     $pdo = getPDO();
     if (!$pdo) return;
-    
+
     try {
         $stmt = $pdo->prepare("
             INSERT INTO login_attempts (email, ip_address, user_agent, success, failure_reason, attempt_time)
@@ -440,10 +446,11 @@ function recordFailedLogin($email, $reason) {
 /**
  * Record successful login - SINGLE DEFINITION
  */
-function recordSuccessfulLogin($userId) {
+function recordSuccessfulLogin($userId)
+{
     $pdo = getPDO();
     if (!$pdo) return;
-    
+
     try {
         $stmt = $pdo->prepare("
             INSERT INTO login_attempts (user_id, email, ip_address, user_agent, success, attempt_time)
@@ -464,10 +471,11 @@ function recordSuccessfulLogin($userId) {
 /**
  * Increment failed login attempts for user - SINGLE DEFINITION
  */
-function incrementFailedAttempts($userId) {
+function incrementFailedAttempts($userId)
+{
     $pdo = getPDO();
     if (!$pdo) return;
-    
+
     try {
         $stmt = $pdo->prepare("
             UPDATE users 
@@ -487,10 +495,11 @@ function incrementFailedAttempts($userId) {
 /**
  * Reset failed login attempts - SINGLE DEFINITION
  */
-function resetFailedAttempts($userId) {
+function resetFailedAttempts($userId)
+{
     $pdo = getPDO();
     if (!$pdo) return;
-    
+
     try {
         $stmt = $pdo->prepare("
             UPDATE users 
@@ -506,10 +515,11 @@ function resetFailedAttempts($userId) {
 /**
  * Update last login timestamp for users - SINGLE DEFINITION
  */
-function updateLastLogin($userId) {
+function updateLastLogin($userId)
+{
     $pdo = getPDO();
     if (!$pdo) return;
-    
+
     try {
         $stmt = $pdo->prepare("UPDATE users SET last_login = NOW() WHERE id = ?");
         $stmt->execute([$userId]);
@@ -521,10 +531,11 @@ function updateLastLogin($userId) {
 /**
  * Update last login timestamp for admins
  */
-function updateAdminLastLogin($adminId) {
+function updateAdminLastLogin($adminId)
+{
     $pdo = getPDO();
     if (!$pdo) return;
-    
+
     try {
         $stmt = $pdo->prepare("UPDATE admins SET last_login = NOW() WHERE id = ?");
         $stmt->execute([$adminId]);
@@ -536,13 +547,14 @@ function updateAdminLastLogin($adminId) {
 /**
  * Determine redirect URL based on user status - SINGLE DEFINITION
  */
-function determineRedirectUrl($user) {
+function determineRedirectUrl($user)
+{
     if (isset($_SESSION['intended_url'])) {
         $intendedUrl = $_SESSION['intended_url'];
         unset($_SESSION['intended_url']);
         return $intendedUrl;
     }
-    
+
     switch ($user['status']) {
         case 'admin':
             return 'admin_dashboard.php';
@@ -557,10 +569,11 @@ function determineRedirectUrl($user) {
 /**
  * Validate and sanitize user input - SINGLE DEFINITION
  */
-function sanitizeInput($input, $type = 'string') {
+function sanitizeInput($input, $type = 'string')
+{
     $input = trim($input);
     $input = stripslashes($input);
-    
+
     switch ($type) {
         case 'email':
             return filter_var($input, FILTER_SANITIZE_EMAIL);
@@ -575,11 +588,12 @@ function sanitizeInput($input, $type = 'string') {
 /**
  * Get current logged-in user from session - SINGLE DEFINITION
  */
-function getCurrentUser() {
+function getCurrentUser()
+{
     if (!isLoggedIn()) {
         return null;
     }
-    
+
     return [
         'id' => $_SESSION['user_id'] ?? null,
         'student_id' => $_SESSION['student_id'] ?? null,
@@ -592,11 +606,12 @@ function getCurrentUser() {
 /**
  * Get current logged-in admin from session
  */
-function getCurrentAdmin() {
+function getCurrentAdmin()
+{
     if (!isAdminLoggedIn()) {
         return null;
     }
-    
+
     return [
         'id' => $_SESSION['user_id'] ?? null,
         'name' => $_SESSION['admin_name'] ?? '',
@@ -609,7 +624,8 @@ function getCurrentAdmin() {
 /**
  * Logout function - SINGLE DEFINITION
  */
-function logout() {
+function logout()
+{
     $pdo = getPDO();
     if ($pdo && isset($_SESSION['user_id'])) {
         try {
@@ -627,10 +643,10 @@ function logout() {
             error_log("Error recording logout: " . $e->getMessage());
         }
     }
-    
+
     // Clear login session
     clearLoginSession();
-    
+
     // Redirect to website homepage
     header('Location: https://edubridgesa.co.za/');
     exit();
@@ -639,7 +655,8 @@ function logout() {
 /**
  * Generate CSRF token - SINGLE DEFINITION
  */
-function generateCSRFToken() {
+function generateCSRFToken()
+{
     if (!isset($_SESSION['csrf_token'])) {
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
     }
@@ -649,7 +666,8 @@ function generateCSRFToken() {
 /**
  * Validate CSRF token - SINGLE DEFINITION
  */
-function validateCSRFToken($token) {
+function validateCSRFToken($token)
+{
     if (!isset($_SESSION['csrf_token'])) {
         return false;
     }
@@ -659,25 +677,27 @@ function validateCSRFToken($token) {
 /**
  * Check if user is logged in as admin
  */
-function isAdminLoggedIn() {
+function isAdminLoggedIn()
+{
     return isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true;
 }
 
 /**
  * Set admin login session
  */
-function setAdminLoginSession($admin, $rememberMe = false) {
+function setAdminLoginSession($admin, $rememberMe = false)
+{
     // Regenerate session ID for security
     if (session_status() === PHP_SESSION_ACTIVE) {
         session_regenerate_id(true);
     }
-    
+
     // Clear any existing student session
     unset($_SESSION['student_logged_in']);
     unset($_SESSION['student_name']);
     unset($_SESSION['student_id']);
     unset($_SESSION['student_email']);
-    
+
     // Set admin session data
     $_SESSION['admin_logged_in'] = true;
     $_SESSION['admin_name'] = $admin['name'];
@@ -688,11 +708,11 @@ function setAdminLoginSession($admin, $rememberMe = false) {
     $_SESSION['admin_role'] = $admin['role'];
     $_SESSION['login_time'] = time();
     $_SESSION['last_activity'] = time();
-    
+
     // Device and security tracking
     $_SESSION['login_ip'] = getClientIP();
     $_SESSION['user_agent'] = $_SERVER['HTTP_USER_AGENT'] ?? '';
-    
+
     // Log admin login activity
     try {
         $pdo = getPDO();
@@ -702,7 +722,7 @@ function setAdminLoginSession($admin, $rememberMe = false) {
                 VALUES (?, 'login', 'Admin logged in successfully', ?, ?)
             ");
             $stmt->execute([
-                $admin['id'], 
+                $admin['id'],
                 $_SERVER['REMOTE_ADDR'] ?? 'Unknown',
                 $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown'
             ]);
@@ -711,4 +731,3 @@ function setAdminLoginSession($admin, $rememberMe = false) {
         error_log("Admin activity log error: " . $e->getMessage());
     }
 }
-?>

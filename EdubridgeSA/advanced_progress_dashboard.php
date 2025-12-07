@@ -16,7 +16,8 @@ $reference_number = $_SESSION['reference_number'] ?? 'APP2025000000';
 $student_id = (int)($_SESSION['student_id'] ?? 0);
 
 // Helper: get latest application id and some attributes
-function getApplicationContext(PDO $pdo, ?string $email, ?string $reference): array {
+function getApplicationContext(PDO $pdo, ?string $email, ?string $reference): array
+{
     $ctx = [
         'application_id' => null,
         'application_status' => 'draft',
@@ -30,7 +31,9 @@ function getApplicationContext(PDO $pdo, ?string $email, ?string $reference): ar
             $stmt = $pdo->prepare("SELECT id, application_status, department, created_at, updated_at FROM applications WHERE reference_number = ? ORDER BY updated_at DESC, id DESC LIMIT 1");
             $stmt->execute([$reference]);
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
-            if ($row) { $ctx = array_merge($ctx, $row); }
+            if ($row) {
+                $ctx = array_merge($ctx, $row);
+            }
         }
         if (!$ctx['application_id'] && $email) {
             $stmt = $pdo->prepare("SELECT id, application_status, department, created_at, updated_at, reference_number FROM applications WHERE email_address = ? ORDER BY updated_at DESC, id DESC LIMIT 1");
@@ -38,7 +41,9 @@ function getApplicationContext(PDO $pdo, ?string $email, ?string $reference): ar
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
             if ($row) {
                 $ctx = array_merge($ctx, $row);
-                if (!empty($row['reference_number'])) { $GLOBALS['reference_number'] = $row['reference_number']; }
+                if (!empty($row['reference_number'])) {
+                    $GLOBALS['reference_number'] = $row['reference_number'];
+                }
             }
         }
     } catch (Throwable $e) {
@@ -48,7 +53,8 @@ function getApplicationContext(PDO $pdo, ?string $email, ?string $reference): ar
 }
 
 // Helper: gather sub-statuses for pipeline
-function getStageStatuses(PDO $pdo, int $application_id, ?string $email): array {
+function getStageStatuses(PDO $pdo, int $application_id, ?string $email): array
+{
     $stages = [
         'document_submission' => [
             'label' => 'Document Submission',
@@ -86,59 +92,72 @@ function getStageStatuses(PDO $pdo, int $application_id, ?string $email): array 
     ];
 
     try {
-        // Documents uploaded
-        $stmt = $pdo->prepare("SELECT document_type FROM application_documents WHERE application_id = ?");
+        // OPTIMIZED: Batch fetch all needed data in 2 queries instead of 4
+        // Query 1: Get documents and their info with aggregation
+        $stmt = $pdo->prepare("
+            SELECT 
+                GROUP_CONCAT(DISTINCT document_type) as document_types,
+                MIN(created_at) AS oldest_doc_date,
+                COUNT(*) as doc_count
+            FROM application_documents 
+            WHERE application_id = ?
+        ");
         $stmt->execute([$application_id]);
-        $types = array_map(fn($r) => $r['document_type'] ?? '', $stmt->fetchAll(PDO::FETCH_ASSOC));
-        foreach (['certified_id', 'academic_results', 'proof_of_residence'] as $req) {
-            if (in_array($req, $types)) { $stages['document_submission']['substeps'][$req] = true; }
-        }
-        $docCount = array_sum(array_map(fn($v)=>$v?1:0, $stages['document_submission']['substeps']));
-        $stages['document_submission']['status'] = $docCount >= 2 ? 'on_track' : 'delayed';
-        if ($docCount === 3) { $stages['document_submission']['status'] = 'completed'; }
+        $docData = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        // Email verification (best-effort)
-        $emailVerified = false;
-        if ($email) {
-            // Check verification flags from users table if present
-            try {
-                $stmtEV = $pdo->prepare("SELECT email_verified FROM users WHERE email = ? LIMIT 1");
-                $stmtEV->execute([$email]);
-                $emailVerified = (bool)$stmtEV->fetchColumn();
-            } catch (Throwable $e) { /* ignore if column missing */ }
+        // Query 2: Get email verification and application status
+        $stmt = $pdo->prepare("
+            SELECT 
+                a.application_status,
+                COALESCE(u.email_verified, FALSE) as email_verified
+            FROM applications a
+            LEFT JOIN users u ON u.email = ?
+            WHERE a.id = ?
+            LIMIT 1
+        ");
+        $stmt->execute([$email, $application_id]);
+        $statusData = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        // Parse document types
+        $types = !empty($docData['document_types']) ?
+            array_filter(array_map('trim', explode(',', $docData['document_types']))) : [];
+        foreach (['certified_id', 'academic_results', 'proof_of_residence'] as $req) {
+            if (in_array($req, $types)) {
+                $stages['document_submission']['substeps'][$req] = true;
+            }
         }
+        $docCount = $docData['doc_count'] ?? 0;
+        $stages['document_submission']['status'] = $docCount >= 2 ? 'on_track' : 'delayed';
+        if ($docCount === 3) {
+            $stages['document_submission']['status'] = 'completed';
+        }
+
+        // Email verification
+        $emailVerified = (bool)($statusData['email_verified'] ?? false);
         $stages['verification']['substeps']['email_verified'] = $emailVerified;
 
         // Documents verified heuristic: if required docs exist, consider verified when older than 2 days
         $docsVerified = false;
-        try {
-            $stmtDV = $pdo->prepare("SELECT MIN(created_at) AS oldest FROM application_documents WHERE application_id = ?");
-            $stmtDV->execute([$application_id]);
-            $oldest = $stmtDV->fetchColumn();
-            if ($oldest) {
-                $ageDays = (time() - strtotime($oldest)) / 86400;
-                $docsVerified = $ageDays >= 2 && $docCount >= 2; // simple heuristic
-            }
-        } catch (Throwable $e) { /* noop */ }
+        if ($docData['oldest_doc_date']) {
+            $ageDays = (time() - strtotime($docData['oldest_doc_date'])) / 86400;
+            $docsVerified = $ageDays >= 2 && $docCount >= 2;
+        }
         $stages['verification']['substeps']['documents_verified'] = $docsVerified;
-        $verCount = array_sum(array_map(fn($v)=>$v?1:0, $stages['verification']['substeps']));
+        $verCount = array_sum(array_map(fn($v) => $v ? 1 : 0, $stages['verification']['substeps']));
         $stages['verification']['status'] = $verCount === 2 ? 'completed' : ($verCount >= 1 ? 'on_track' : 'delayed');
 
         // Review status from application_status
-        $stmtAS = $pdo->prepare("SELECT application_status FROM applications WHERE id = ?");
-        $stmtAS->execute([$application_id]);
-        $appStatus = strtolower($stmtAS->fetchColumn() ?: 'draft');
+        $appStatus = strtolower($statusData['application_status'] ?: 'draft');
         $stages['review']['substeps']['application_review'] = in_array($appStatus, ['in_review', 'submitted', 'completed']);
         $stages['review']['substeps']['academic_review'] = in_array($appStatus, ['submitted', 'completed']);
-        $revCount = array_sum(array_map(fn($v)=>$v?1:0, $stages['review']['substeps']));
+        $revCount = array_sum(array_map(fn($v) => $v ? 1 : 0, $stages['review']['substeps']));
         $stages['review']['status'] = $revCount === 2 ? 'completed' : ($revCount >= 1 ? 'on_track' : 'pending');
 
         // Decision
-        $stages['decision']['substeps']['submitted'] = in_array($appStatus, ['submitted','completed']);
+        $stages['decision']['substeps']['submitted'] = in_array($appStatus, ['submitted', 'completed']);
         $stages['decision']['substeps']['finalized'] = ($appStatus === 'completed');
-        $decCount = array_sum(array_map(fn($v)=>$v?1:0, $stages['decision']['substeps']));
+        $decCount = array_sum(array_map(fn($v) => $v ? 1 : 0, $stages['decision']['substeps']));
         $stages['decision']['status'] = $decCount === 2 ? 'completed' : ($decCount >= 1 ? 'on_track' : 'pending');
-
     } catch (Throwable $e) {
         error_log('advanced_progress getStageStatuses error: ' . $e->getMessage());
     }
@@ -147,7 +166,8 @@ function getStageStatuses(PDO $pdo, int $application_id, ?string $email): array 
 }
 
 // Smart timeline estimation using existing utilities
-function buildTimeline(PDO $pdo, int $userId): array {
+function buildTimeline(PDO $pdo, int $userId): array
+{
     $base = ['estimate_text' => 'Estimated completion: 2–3 weeks', 'confidence' => 0.7, 'status' => 'On Track', 'buffer_days' => 3, 'range_days' => [14, 21]];
     try {
         $smart = computeProgressEstimates($pdo, $userId);
@@ -159,8 +179,12 @@ function buildTimeline(PDO $pdo, int $userId): array {
         $minDays = max(7, intval($total * 0.8));
         $maxDays = intval($total + $buffer);
         $confidence = 0.6; // heuristic baseline
-        if (($smart['sample_size'] ?? 0) > 30) { $confidence = 0.8; }
-        if (($smart['variance'] ?? 0) > 6) { $confidence -= 0.1; }
+        if (($smart['sample_size'] ?? 0) > 30) {
+            $confidence = 0.8;
+        }
+        if (($smart['variance'] ?? 0) > 6) {
+            $confidence -= 0.1;
+        }
         $base = [
             'estimate_text' => "Estimated completion: {$minDays}–{$maxDays} days",
             'confidence' => max(0.3, min(0.95, $confidence)),
@@ -177,13 +201,16 @@ function buildTimeline(PDO $pdo, int $userId): array {
 }
 
 // Bottleneck detection
-function detectBottlenecks(PDO $pdo, array $stages, array $timeline, int $application_id, ?string $email): array {
+function detectBottlenecks(PDO $pdo, array $stages, array $timeline, int $application_id, ?string $email): array
+{
     $issues = [];
 
     // Missing required documents
     $missing = [];
-    foreach (['certified_id','academic_results'] as $req) {
-        if (!$stages['document_submission']['substeps'][$req]) { $missing[] = $req; }
+    foreach (['certified_id', 'academic_results'] as $req) {
+        if (!$stages['document_submission']['substeps'][$req]) {
+            $missing[] = $req;
+        }
     }
     if ($missing) {
         $issues[] = [
@@ -223,7 +250,8 @@ function detectBottlenecks(PDO $pdo, array $stages, array $timeline, int $applic
 }
 
 // Comparative analytics
-function comparativeAnalytics(PDO $pdo, int $application_id, ?string $department, array $timeline): array {
+function comparativeAnalytics(PDO $pdo, int $application_id, ?string $department, array $timeline): array
+{
     $data = [
         'speed_vs_average' => +15, // percentage faster than average, default optimistic
         'department' => $department ?: 'General',
@@ -276,6 +304,7 @@ $analytics = $application_id ? comparativeAnalytics($pdo, $application_id, $appC
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -300,29 +329,122 @@ $analytics = $application_id ? comparativeAnalytics($pdo, $application_id, $appC
             --white: #fff;
         }
 
-        body { font-family: 'Poppins', sans-serif; background: linear-gradient(135deg, var(--royal-blue) 0%, var(--royal-blue-light) 100%); min-height: 100vh; }
-        .container-xl { max-width: 1200px; }
-        .card { border-radius: 16px; box-shadow: 0 8px 25px rgba(0,0,0,.12); border:1px solid var(--gray-200); }
-        .card-header { background: linear-gradient(135deg, var(--royal-blue) 0%, var(--royal-blue-light) 100%); color: var(--white); border-radius: 16px 16px 0 0; }
-        .stage { display:flex; align-items:center; gap:12px; padding:12px; border:1px solid var(--gray-200); border-radius:12px; background:#fff; }
-        .stage.on_track { border-left: 6px solid var(--success); }
-        .stage.delayed { border-left: 6px solid var(--warning); }
-        .stage.blocked { border-left: 6px solid var(--danger); }
-        .stage.completed { border-left: 6px solid var(--primary); opacity: .95; }
-        .badge-sub { background: var(--gray-100); color: var(--gray-800); border:1px solid var(--gray-300); }
-        .pipeline { display:grid; grid-template-columns: 1fr; gap:12px; }
-        @media(min-width: 768px) { .pipeline { grid-template-columns: 1fr 1fr; } }
-        .progress-bar-custom { height: 12px; background: var(--gray-200); border-radius: 8px; overflow: hidden; }
-        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--secondary)); width: 0; transition: width .4s ease; }
-        .status-chip { display:inline-block; padding:6px 12px; border-radius:999px; color:#fff; font-weight:600; }
-        .status-on { background: var(--primary); }
-        .status-ahead { background: var(--success); }
-        .status-delay { background: var(--warning); }
-        .status-block { background: var(--danger); }
-        .issue { border-left:4px solid var(--warning); padding-left:12px; }
-        .issue.blocked { border-left-color: var(--danger); }
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, var(--royal-blue) 0%, var(--royal-blue-light) 100%);
+            min-height: 100vh;
+        }
+
+        .container-xl {
+            max-width: 1200px;
+        }
+
+        .card {
+            border-radius: 16px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, .12);
+            border: 1px solid var(--gray-200);
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, var(--royal-blue) 0%, var(--royal-blue-light) 100%);
+            color: var(--white);
+            border-radius: 16px 16px 0 0;
+        }
+
+        .stage {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border: 1px solid var(--gray-200);
+            border-radius: 12px;
+            background: #fff;
+        }
+
+        .stage.on_track {
+            border-left: 6px solid var(--success);
+        }
+
+        .stage.delayed {
+            border-left: 6px solid var(--warning);
+        }
+
+        .stage.blocked {
+            border-left: 6px solid var(--danger);
+        }
+
+        .stage.completed {
+            border-left: 6px solid var(--primary);
+            opacity: .95;
+        }
+
+        .badge-sub {
+            background: var(--gray-100);
+            color: var(--gray-800);
+            border: 1px solid var(--gray-300);
+        }
+
+        .pipeline {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+
+        @media(min-width: 768px) {
+            .pipeline {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .progress-bar-custom {
+            height: 12px;
+            background: var(--gray-200);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            width: 0;
+            transition: width .4s ease;
+        }
+
+        .status-chip {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 999px;
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .status-on {
+            background: var(--primary);
+        }
+
+        .status-ahead {
+            background: var(--success);
+        }
+
+        .status-delay {
+            background: var(--warning);
+        }
+
+        .status-block {
+            background: var(--danger);
+        }
+
+        .issue {
+            border-left: 4px solid var(--warning);
+            padding-left: 12px;
+        }
+
+        .issue.blocked {
+            border-left-color: var(--danger);
+        }
     </style>
 </head>
+
 <body>
     <div class="container-xl py-4">
         <div class="row g-3">
@@ -341,7 +463,11 @@ $analytics = $application_id ? comparativeAnalytics($pdo, $application_id, $appC
                         <div class="row g-3 align-items-center">
                             <div class="col-md-8">
                                 <div class="progress-bar-custom mb-2">
-                                    <?php $pct = 0; if ($timeline['elapsed_days'] ?? 0) { $range = max(1, $timeline['range_days'][1] ?? 21); $pct = min(100, intval(($timeline['elapsed_days'] / $range) * 100)); } ?>
+                                    <?php $pct = 0;
+                                    if ($timeline['elapsed_days'] ?? 0) {
+                                        $range = max(1, $timeline['range_days'][1] ?? 21);
+                                        $pct = min(100, intval(($timeline['elapsed_days'] / $range) * 100));
+                                    } ?>
                                     <div class="progress-fill" style="width: <?= $pct ?>%"></div>
                                 </div>
                                 <div class="text-muted">
@@ -363,31 +489,35 @@ $analytics = $application_id ? comparativeAnalytics($pdo, $application_id, $appC
             <!-- Pipeline -->
             <div class="col-12">
                 <div class="card">
-                    <div class="card-header"><h5 class="mb-0">Multi‑Stage Pipeline</h5></div>
+                    <div class="card-header">
+                        <h5 class="mb-0">Multi‑Stage Pipeline</h5>
+                    </div>
                     <div class="card-body">
-                        <?php if (!$stages) { echo '<p class="text-muted">No application found. Start your application to see detailed progress.</p>'; } else { ?>
-                        <div class="pipeline">
-                            <?php foreach ($stages as $key => $s): ?>
-                                <div class="stage <?= htmlspecialchars($s['status']) ?>">
-                                    <i class="fa-solid fa-layer-group fa-lg text-primary"></i>
-                                    <div class="flex-grow-1">
-                                        <div class="d-flex justify-content-between">
-                                            <strong><?= htmlspecialchars($s['label']) ?></strong>
-                                            <span class="badge badge-sub">
-                                                <?= htmlspecialchars(ucfirst(str_replace('_',' ', $s['status']))) ?>
-                                            </span>
-                                        </div>
-                                        <div class="mt-2 d-flex flex-wrap gap-2">
-                                            <?php foreach ($s['substeps'] as $sub => $done): ?>
-                                                <span class="badge <?= $done ? 'bg-success' : 'bg-secondary' ?>">
-                                                    <?= htmlspecialchars(ucwords(str_replace('_',' ', $sub))) ?>
+                        <?php if (!$stages) {
+                            echo '<p class="text-muted">No application found. Start your application to see detailed progress.</p>';
+                        } else { ?>
+                            <div class="pipeline">
+                                <?php foreach ($stages as $key => $s): ?>
+                                    <div class="stage <?= htmlspecialchars($s['status']) ?>">
+                                        <i class="fa-solid fa-layer-group fa-lg text-primary"></i>
+                                        <div class="flex-grow-1">
+                                            <div class="d-flex justify-content-between">
+                                                <strong><?= htmlspecialchars($s['label']) ?></strong>
+                                                <span class="badge badge-sub">
+                                                    <?= htmlspecialchars(ucfirst(str_replace('_', ' ', $s['status']))) ?>
                                                 </span>
-                                            <?php endforeach; ?>
+                                            </div>
+                                            <div class="mt-2 d-flex flex-wrap gap-2">
+                                                <?php foreach ($s['substeps'] as $sub => $done): ?>
+                                                    <span class="badge <?= $done ? 'bg-success' : 'bg-secondary' ?>">
+                                                        <?= htmlspecialchars(ucwords(str_replace('_', ' ', $sub))) ?>
+                                                    </span>
+                                                <?php endforeach; ?>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            <?php endforeach; ?>
-                        </div>
+                                <?php endforeach; ?>
+                            </div>
                         <?php } ?>
                     </div>
                 </div>
@@ -396,22 +526,26 @@ $analytics = $application_id ? comparativeAnalytics($pdo, $application_id, $appC
             <!-- Bottlenecks -->
             <div class="col-md-6">
                 <div class="card">
-                    <div class="card-header"><h5 class="mb-0">Bottleneck Detection</h5></div>
+                    <div class="card-header">
+                        <h5 class="mb-0">Bottleneck Detection</h5>
+                    </div>
                     <div class="card-body">
                         <?php if (!$issues) { ?>
                             <p class="text-success mb-0"><i class="fa-regular fa-circle-check"></i> No bottlenecks detected. You're on track.</p>
-                        <?php } else { foreach ($issues as $issue): ?>
-                            <div class="issue <?= htmlspecialchars($issue['severity']) ?> mb-3">
-                                <strong><?= htmlspecialchars($issue['stage']) ?></strong>
-                                <div class="text-muted"><?= htmlspecialchars($issue['message']) ?></div>
-                                <div class="mt-2 d-flex gap-2">
-                                    <a class="btn btn-sm btn-primary" href="<?= htmlspecialchars($issue['action_url']) ?>">
-                                        Resolve Now
-                                    </a>
-                                    <span class="text-muted small">Suggestion: <?= htmlspecialchars($issue['suggestion']) ?></span>
+                        <?php } else { ?>
+                            <?php foreach ($issues as $issue): ?>
+                                <div class="issue <?= htmlspecialchars($issue['severity']) ?> mb-3">
+                                    <strong><?= htmlspecialchars($issue['stage']) ?></strong>
+                                    <div class="text-muted"><?= htmlspecialchars($issue['message']) ?></div>
+                                    <div class="mt-2 d-flex gap-2">
+                                        <a class="btn btn-sm btn-primary" href="<?= htmlspecialchars($issue['action_url']) ?>">
+                                            Resolve Now
+                                        </a>
+                                        <span class="text-muted small">Suggestion: <?= htmlspecialchars($issue['suggestion']) ?></span>
+                                    </div>
                                 </div>
-                            </div>
-                        <?php } } ?>
+                            <?php endforeach; ?>
+                        <?php } ?>
                     </div>
                 </div>
             </div>
@@ -419,7 +553,9 @@ $analytics = $application_id ? comparativeAnalytics($pdo, $application_id, $appC
             <!-- Comparative Analytics -->
             <div class="col-md-6">
                 <div class="card">
-                    <div class="card-header"><h5 class="mb-0">Comparative Analytics</h5></div>
+                    <div class="card-header">
+                        <h5 class="mb-0">Comparative Analytics</h5>
+                    </div>
                     <div class="card-body">
                         <?php if (!$analytics) { ?>
                             <p class="text-muted mb-0">Analytics become available once your application enters review.</p>
@@ -450,7 +586,9 @@ $analytics = $application_id ? comparativeAnalytics($pdo, $application_id, $appC
             <!-- Actions -->
             <div class="col-12">
                 <div class="card">
-                    <div class="card-header"><h5 class="mb-0">Next Best Actions</h5></div>
+                    <div class="card-header">
+                        <h5 class="mb-0">Next Best Actions</h5>
+                    </div>
                     <div class="card-body d-flex flex-wrap gap-2">
                         <a class="btn btn-primary" href="document_upload.php<?= isset($reference_number) ? ('?ref=' . urlencode($reference_number)) : '' ?>">
                             <i class="fa-solid fa-file-arrow-up"></i> Upload Documents
@@ -467,4 +605,5 @@ $analytics = $application_id ? comparativeAnalytics($pdo, $application_id, $appC
         </div>
     </div>
 </body>
+
 </html>

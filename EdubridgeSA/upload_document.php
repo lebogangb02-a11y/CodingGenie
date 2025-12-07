@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Document Upload System
  * EduBridge SA - Secure document upload for student applications
@@ -39,13 +40,19 @@ if (!in_array($document_type, $allowed_types)) {
 }
 
 // Document type labels
-function getDocumentLabel($type) {
+function getDocumentLabel($type)
+{
     switch ($type) {
-        case 'certified_id': return 'Certified ID Copy';
-        case 'proof_of_residence': return 'Proof of Residence';
-        case 'parent_guardian_id': return 'Parent/Guardian ID';
-        case 'academic_results': return 'Academic Results';
-        default: return ucfirst(str_replace('_', ' ', $type));
+        case 'certified_id':
+            return 'Certified ID Copy';
+        case 'proof_of_residence':
+            return 'Proof of Residence';
+        case 'parent_guardian_id':
+            return 'Parent/Guardian ID';
+        case 'academic_results':
+            return 'Academic Results';
+        default:
+            return ucfirst(str_replace('_', ' ', $type));
     }
 }
 
@@ -54,55 +61,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['document'])) {
     try {
         $pdo = new PDO("mysql:host=" . DB_HOST . ";dbname=" . DB_NAME, DB_USER, DB_PASS);
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        
+
         $file = $_FILES['document'];
-        
+
         // Validate file
         if ($file['error'] !== UPLOAD_ERR_OK) {
             throw new Exception('File upload error: ' . $file['error']);
         }
-        
+
         // Check file size (max 5MB)
         if ($file['size'] > 5 * 1024 * 1024) {
             throw new Exception('File size too large. Maximum size is 5MB.');
         }
-        
+
         // Check file type
         $allowed_extensions = ['pdf', 'jpg', 'jpeg', 'png'];
         $file_extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-        
+
         if (!in_array($file_extension, $allowed_extensions)) {
             throw new Exception('Invalid file type. Only PDF, JPG, JPEG, and PNG files are allowed.');
         }
-        
+
         // Validate file content (basic MIME type check)
         $finfo = finfo_open(FILEINFO_MIME_TYPE);
         $mime_type = finfo_file($finfo, $file['tmp_name']);
         finfo_close($finfo);
-        
+
         $allowed_mimes = [
             'application/pdf',
             'image/jpeg',
-            'image/jpg', 
+            'image/jpg',
             'image/png'
         ];
-        
+
         if (!in_array($mime_type, $allowed_mimes)) {
             throw new Exception('Invalid file content. File appears to be corrupted or not a valid document/image.');
         }
-        
+
         // Use centralized upload helper to store file
-        $res = store_uploaded_file($file, 'documents/' . $student_id, ['application/pdf','image/jpeg','image/png'], MAX_FILE_SIZE);
+        $res = store_uploaded_file($file, 'documents/' . $student_id, ['application/pdf', 'image/jpeg', 'image/png'], MAX_FILE_SIZE);
         if (!$res['success']) {
             throw new Exception('Failed to save uploaded file: ' . $res['error']);
         }
         $file_path = $res['path'];
-        
+
         // Check if document already exists
         $stmt = $pdo->prepare("SELECT id FROM application_documents WHERE application_id = ? AND document_type = ?");
         $stmt->execute([$student_id, $document_type]);
         $existing_doc = $stmt->fetch();
-        
+
         if ($existing_doc) {
             // Update existing document
             $stmt = $pdo->prepare("
@@ -119,13 +126,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['document'])) {
             ");
             $stmt->execute([$student_id, $document_type, $file_path, $file['name']]);
         }
-        
+
         // Update application status if needed
         if ($application_status === 'draft') {
             $stmt = $pdo->prepare("UPDATE applications SET status = 'documents_pending', updated_at = NOW() WHERE id = ?");
             $stmt->execute([$student_id]);
             $_SESSION['application_status'] = 'documents_pending';
-            
+
             // Add to status history
             $stmt = $pdo->prepare("
                 INSERT INTO application_status_history (application_id, previous_status, new_status, notes, created_at)
@@ -133,12 +140,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['document'])) {
             ");
             $stmt->execute([$student_id]);
         }
-        
+
         $_SESSION['form_message'] = getDocumentLabel($document_type) . ' uploaded successfully!';
         $_SESSION['form_message_type'] = 'success';
         header('Location: student-dashboard.php');
         exit();
-        
     } catch (Exception $e) {
         $error_message = $e->getMessage();
         error_log("Document upload error: " . $error_message);
@@ -149,17 +155,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['document'])) {
 try {
     $pdo = new PDO("mysql:host=" . DB_HOST . ";dbname=" . DB_NAME, DB_USER, DB_PASS);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    
+
     $stmt = $pdo->prepare("SELECT * FROM application_documents WHERE application_id = ? AND document_type = ?");
     $stmt->execute([$student_id, $document_type]);
     $existing_document = $stmt->fetch(PDO::FETCH_ASSOC);
-    
 } catch (PDOException $e) {
     error_log("Database error: " . $e->getMessage());
 }
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -228,6 +234,7 @@ try {
             font-size: 1.5rem;
             text-decoration: none;
         }
+
         .logo img {
             height: 32px;
             width: auto;
@@ -554,6 +561,7 @@ try {
         }
     </style>
 </head>
+
 <body>
     <!-- Navigation -->
     <nav class="navbar">
@@ -583,27 +591,27 @@ try {
             <?php endif; ?>
 
             <?php if ($existing_document): ?>
-            <div class="current-document">
-                <h3><i class="fas fa-file-alt"></i> Current Document</h3>
-                <div class="document-info">
-                    <div class="info-item">
-                        <span class="info-label">File Name:</span>
-                        <span class="info-value"><?php echo htmlspecialchars($existing_document['original_filename']); ?></span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Upload Date:</span>
-                        <span class="info-value"><?php echo date('M j, Y g:i A', strtotime($existing_document['upload_date'])); ?></span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Status:</span>
-                        <span class="info-value">
-                            <span class="status-badge <?php echo $existing_document['upload_status']; ?>">
-                                <?php echo ucfirst($existing_document['upload_status']); ?>
+                <div class="current-document">
+                    <h3><i class="fas fa-file-alt"></i> Current Document</h3>
+                    <div class="document-info">
+                        <div class="info-item">
+                            <span class="info-label">File Name:</span>
+                            <span class="info-value"><?php echo htmlspecialchars($existing_document['original_filename']); ?></span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Upload Date:</span>
+                            <span class="info-value"><?php echo date('M j, Y g:i A', strtotime($existing_document['upload_date'])); ?></span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Status:</span>
+                            <span class="info-value">
+                                <span class="status-badge <?php echo $existing_document['upload_status']; ?>">
+                                    <?php echo ucfirst($existing_document['upload_status']); ?>
+                                </span>
                             </span>
-                        </span>
+                        </div>
                     </div>
                 </div>
-            </div>
             <?php endif; ?>
 
             <div class="requirements">
@@ -642,7 +650,7 @@ try {
                         <i class="fas fa-times"></i> Cancel
                     </a>
                     <button type="submit" class="btn btn-primary" id="uploadBtn" disabled>
-                        <i class="fas fa-upload"></i> 
+                        <i class="fas fa-upload"></i>
                         <?php echo $existing_document ? 'Replace Document' : 'Upload Document'; ?>
                     </button>
                 </div>
@@ -658,7 +666,7 @@ try {
 
         fileInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
-            
+
             if (file) {
                 // Validate file size
                 if (file.size > 5 * 1024 * 1024) {
@@ -666,7 +674,7 @@ try {
                     fileInput.value = '';
                     return;
                 }
-                
+
                 // Validate file type
                 const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
                 if (!allowedTypes.includes(file.type)) {
@@ -674,7 +682,7 @@ try {
                     fileInput.value = '';
                     return;
                 }
-                
+
                 // Update display
                 fileDisplay.classList.add('has-file');
                 fileName.textContent = file.name;
@@ -701,7 +709,7 @@ try {
         fileDisplay.addEventListener('drop', function(e) {
             e.preventDefault();
             fileDisplay.style.borderColor = 'var(--gray-300)';
-            
+
             const files = e.dataTransfer.files;
             if (files.length > 0) {
                 fileInput.files = files;
@@ -716,4 +724,5 @@ try {
         });
     </script>
 </body>
+
 </html>

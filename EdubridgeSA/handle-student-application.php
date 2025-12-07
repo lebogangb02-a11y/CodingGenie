@@ -19,8 +19,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 // CSRF protection
-if (!isset($_POST[CSRF_TOKEN_NAME]) || !isset($_SESSION[CSRF_TOKEN_NAME]) || 
-    $_POST[CSRF_TOKEN_NAME] !== $_SESSION[CSRF_TOKEN_NAME]) {
+if (
+    !isset($_POST[CSRF_TOKEN_NAME]) || !isset($_SESSION[CSRF_TOKEN_NAME]) ||
+    $_POST[CSRF_TOKEN_NAME] !== $_SESSION[CSRF_TOKEN_NAME]
+) {
     $_SESSION['form_message'] = 'Security token mismatch. Please try again.';
     $_SESSION['form_message_type'] = 'error';
     header('Location: student-apply.php');
@@ -89,7 +91,7 @@ try {
 
     // ID document
     if (isset($_FILES['id_document'])) {
-        $res = store_uploaded_file($_FILES['id_document'], 'id_documents', ['application/pdf','image/jpeg','image/png'], MAX_FILE_SIZE);
+        $res = store_uploaded_file($_FILES['id_document'], 'id_documents', ['application/pdf', 'image/jpeg', 'image/png'], MAX_FILE_SIZE);
         if (!$res['success']) {
             throw new Exception('ID upload failed: ' . $res['error']);
         }
@@ -98,7 +100,7 @@ try {
 
     // Matric certificate
     if (isset($_FILES['matric_certificate'])) {
-        $res = store_uploaded_file($_FILES['matric_certificate'], 'matric_certificates', ['application/pdf','image/jpeg','image/png'], MAX_FILE_SIZE);
+        $res = store_uploaded_file($_FILES['matric_certificate'], 'matric_certificates', ['application/pdf', 'image/jpeg', 'image/png'], MAX_FILE_SIZE);
         if (!$res['success']) {
             throw new Exception('Matric upload failed: ' . $res['error']);
         }
@@ -119,7 +121,7 @@ try {
                     'size' => $_FILES['additional_documents']['size'][$i],
                 ];
 
-                $res = store_uploaded_file($fileArray, 'additional_documents', ['application/pdf','image/jpeg','image/png'], MAX_FILE_SIZE);
+                $res = store_uploaded_file($fileArray, 'additional_documents', ['application/pdf', 'image/jpeg', 'image/png'], MAX_FILE_SIZE);
                 if ($res['success']) {
                     $additional_docs[] = str_replace(realpath(__DIR__) . DIRECTORY_SEPARATOR, '', $res['path']);
                 }
@@ -168,7 +170,7 @@ try {
 
     $stmt = $pdo->prepare($sql);
     $stmt->execute($application_data);
-    
+
     $application_id = $pdo->lastInsertId();
 
     // Send notification emails
@@ -185,14 +187,13 @@ try {
     $_SESSION['applicant_email'] = $data['email'];
     $_SESSION['form_message'] = "Your application has been submitted successfully! Application ID: {$application_id}. You will receive a confirmation email shortly.";
     $_SESSION['form_message_type'] = 'success';
-    
+
     // Regenerate CSRF token
     $_SESSION[CSRF_TOKEN_NAME] = bin2hex(random_bytes(32));
-    
+
     // Redirect to thank-you page instead
     header('Location: thank-you.php');
     exit();
-
 } catch (Exception $e) {
     $_SESSION['form_message'] = 'Application submission failed: ' . $e->getMessage();
     $_SESSION['form_message_type'] = 'error';
@@ -203,12 +204,13 @@ try {
 /**
  * Send application notification emails
  */
-function sendApplicationNotification($data, $applicationId) {
+function sendApplicationNotification($data, $applicationId)
+{
     // Include PHPMailer
     require_once 'PHPMailer/src/Exception.php';
     require_once 'PHPMailer/src/PHPMailer.php';
     require_once 'PHPMailer/src/SMTP.php';
-    
+
     // Use fully qualified class names instead of 'use' statements inside function
     $mail = new \PHPMailer\PHPMailer\PHPMailer(true);
 
@@ -226,10 +228,10 @@ function sendApplicationNotification($data, $applicationId) {
         // Send confirmation to student
         $mail->setFrom(FROM_EMAIL, 'EduBridge SA');
         $mail->addAddress($data['email'], $data['first_name'] . ' ' . $data['last_name']);
-        
+
         $mail->isHTML(true);
         $mail->Subject = "Application Confirmation - EduBridge SA (ID: {$applicationId})";
-        
+
         $confirmationMessage = "
         <html>
         <head>
@@ -276,16 +278,16 @@ function sendApplicationNotification($data, $applicationId) {
             </div>
         </body>
         </html>";
-        
+
         $mail->Body = $confirmationMessage;
         $mail->send();
 
         // Send notification to admin
         $mail->clearAddresses();
         $mail->addAddress(ADMIN_EMAIL, 'EduBridge Admin');
-        
+
         $mail->Subject = "New Student Application - ID: {$applicationId}";
-        
+
         $adminMessage = "
         <html>
         <head>
@@ -324,12 +326,10 @@ function sendApplicationNotification($data, $applicationId) {
             </div>
         </body>
         </html>";
-        
+
         $mail->Body = $adminMessage;
         $mail->send();
-
     } catch (Exception $e) {
         throw new Exception('Email notification failed: ' . $e->getMessage());
     }
 }
-?>

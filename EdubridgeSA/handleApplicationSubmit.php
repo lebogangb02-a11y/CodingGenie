@@ -209,7 +209,6 @@ function handleFileUploads($files)
 
             if (!empty($uploadedFiles)) $result['files'][$field] = $uploadedFiles;
             if (!empty($fileErrors)) $result['errors'][$field] = implode(' ', $fileErrors);
-
         } else {
             if (empty($file['name'])) continue;
 
