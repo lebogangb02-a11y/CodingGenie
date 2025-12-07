@@ -2,6 +2,8 @@
 session_start();
 require_once 'config.php';
 require_once 'security-utils.php';
+require_once __DIR__ . '/includes/upload_helper.php';
+require_once __DIR__ . '/includes/security_helpers.php';
 
 // Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
@@ -67,48 +69,20 @@ $original_name = $file['name'];
 $tmp_name = $file['tmp_name'];
 $file_size = $file['size'];
 
-// Validate file size (2MB max)
+// Validate file size (2MB max) and use centralized helper
 $max_size = 2 * 1024 * 1024; // 2MB in bytes
-if ($file_size > $max_size) {
-    echo json_encode(['success' => false, 'message' => 'File size exceeds 2MB limit']);
+$res = store_uploaded_file($file, 'profile_pictures', ['image/jpeg','image/png','image/webp','image/jpg'], $max_size);
+if (!$res['success']) {
+    echo json_encode(['success' => false, 'message' => 'Upload failed: ' . h($res['error'])]);
     exit();
 }
 
-// Validate file type
-$allowed_types = ['image/jpeg', 'image/jpg', 'image/png'];
-$finfo = finfo_open(FILEINFO_MIME_TYPE);
-$mime_type = finfo_file($finfo, $tmp_name);
-finfo_close($finfo);
+// Use returned values
+$new_filename = $res['filename'];
+$file_path = $res['path'];
+$mime_type = $res['mime'];
+$file_size = $res['size'];
 
-if (!in_array($mime_type, $allowed_types)) {
-    echo json_encode(['success' => false, 'message' => 'Only JPG and PNG files are allowed']);
-    exit();
-}
-
-// Validate file extension
-$file_extension = strtolower(pathinfo($original_name, PATHINFO_EXTENSION));
-$allowed_extensions = ['jpg', 'jpeg', 'png'];
-if (!in_array($file_extension, $allowed_extensions)) {
-    echo json_encode(['success' => false, 'message' => 'Invalid file extension']);
-    exit();
-}
-
-// Generate unique filename
-$new_filename = 'profile_' . $user_id . '_' . time() . '.' . $file_extension;
-$file_path = $upload_dir . $new_filename;
-
-// Additional security: Check if file is actually an image
-$image_info = getimagesize($tmp_name);
-if ($image_info === false) {
-    echo json_encode(['success' => false, 'message' => 'File is not a valid image']);
-    exit();
-}
-
-// Move uploaded file
-if (!move_uploaded_file($tmp_name, $file_path)) {
-    echo json_encode(['success' => false, 'message' => 'Failed to save uploaded file']);
-    exit();
-}
 
 try {
     // Start database transaction
