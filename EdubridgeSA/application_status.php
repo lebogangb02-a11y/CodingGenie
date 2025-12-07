@@ -17,6 +17,9 @@ $reference_number = $_GET['ref'] ?? $_POST['reference_number'] ?? '';
 
 // Handle reference number lookup
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['check_status'])) {
+    // Server-side CSRF enforcement (best-effort)
+    if (function_exists('require_csrf')) { require_csrf(); }
+
     $reference_number = sanitizeInput($_POST['reference_number']);
 
     if (empty($reference_number)) {

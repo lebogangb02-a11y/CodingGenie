@@ -73,6 +73,8 @@ if (isset($pdo) && $pdo instanceof PDO) {
 
 // Handle password change
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Enforce server-side CSRF if available
+    if (function_exists('require_csrf')) { require_csrf(); }
     if (isset($_POST['change_password']) && isset($pdo) && $pdo instanceof PDO) {
         $currentPass = trim($_POST['current_password'] ?? '');
         $newPass = trim($_POST['new_password'] ?? '');

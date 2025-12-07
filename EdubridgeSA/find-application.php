@@ -29,6 +29,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' && !empty($student_email)) {
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Enforce CSRF if security helpers are available
+    if (function_exists('require_csrf')) { require_csrf(); }
+
     require_once 'config.php';
     
     $email = trim($_POST['email'] ?? '');

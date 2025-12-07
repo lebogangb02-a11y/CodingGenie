@@ -1,6 +1,8 @@
 <?php
 // update_settings.php
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_settings'])) {
+    // Enforce CSRF check server-side
+    if (function_exists('require_csrf')) { require_csrf(); }
     $dark_mode = isset($_POST['dark_mode']) ? 1 : 0;
     $email_notifications = isset($_POST['email_notifications']) ? 1 : 0;
     $login_alerts = isset($_POST['login_alerts']) ? 1 : 0;

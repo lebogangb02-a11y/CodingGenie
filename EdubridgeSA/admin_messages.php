@@ -90,6 +90,8 @@ if (isset($pdo) && $pdo instanceof PDO) {
 
 // Handle actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Enforce CSRF server-side when helper available
+    if (function_exists('require_csrf')) { require_csrf(); }
     if (isset($_POST['mark_read']) && isset($_POST['message_id'])) {
         $messageId = (int)$_POST['message_id'];
         try {

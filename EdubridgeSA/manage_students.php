@@ -29,6 +29,8 @@ $controller = new StudentController($pdo);
 
 // Handle bulk actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bulk_action'])) {
+    // Server-side CSRF enforcement (if helpers available)
+    if (function_exists('require_csrf')) { require_csrf(); }
     $selected = array_map('intval', $_POST['selected'] ?? []);
     $action = $_POST['bulk_action'];
     

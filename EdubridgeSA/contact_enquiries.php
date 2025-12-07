@@ -12,6 +12,8 @@ $enquiries = [];
 
 // Handle actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Server-side CSRF enforcement (no-op if helper not available)
+    if (function_exists('require_csrf')) { require_csrf(); }
     if (isset($_POST['update_enquiry_status']) && isset($_POST['enquiry_id'])) {
         $enquiryId = (int)$_POST['enquiry_id'];
         $status = $_POST['status'] ?? 'new';

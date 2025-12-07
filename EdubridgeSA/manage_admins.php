@@ -65,6 +65,8 @@ $msgType = 'info';
 
 // Handle form actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Enforce server-side CSRF when available
+    if (function_exists('require_csrf')) { require_csrf(); }
     $action = $_POST['action'] ?? '';
     
     if ($action === 'add_admin') {
