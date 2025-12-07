@@ -17,6 +17,8 @@ require_once 'config.php';
 require_once __DIR__ . '/includes/security_helpers.php';
 // Enforce CSRF for this POST-based form handler
 require_csrf();
+// Centralized upload helper
+require_once __DIR__ . '/includes/upload_helper.php';
 
 // NOW you can use CSRF_TOKEN_NAME and other constants
 error_log("=== HANDLE APPLICATION SUBMIT STARTED ===");
@@ -171,11 +173,6 @@ function handleFileUploads($files)
         'errors' => []
     ];
 
-    // Create upload directory if it doesn't exist
-    if (!file_exists(UPLOAD_DIR)) {
-        mkdir(UPLOAD_DIR, 0755, true);
-    }
-
     $allowedTypes = [
         'application/pdf',
         'image/jpeg',
@@ -184,97 +181,45 @@ function handleFileUploads($files)
 
     // Process each uploaded file
     foreach ($files as $field => $file) {
-        // Handle multiple file uploads (like additional_documents)
+        // Multiple file inputs (like additional_documents)
         if (is_array($file['name'])) {
-            // Multiple files - process each one
             $uploadedFiles = [];
             $fileErrors = [];
 
-            for ($i = 0; $i < count($file['name']); $i++) {
-                if (empty($file['name'][$i])) {
+            $count = count($file['name']);
+            for ($i = 0; $i < $count; $i++) {
+                if (empty($file['name'][$i])) continue;
+
+                $fileArray = [
+                    'name' => $file['name'][$i],
+                    'type' => $file['type'][$i] ?? null,
+                    'tmp_name' => $file['tmp_name'][$i],
+                    'error' => $file['error'][$i],
+                    'size' => $file['size'][$i],
+                ];
+
+                $res = store_uploaded_file($fileArray, $field, $allowedTypes, MAX_FILE_SIZE);
+                if (!$res['success']) {
+                    $fileErrors[] = 'File ' . ($i + 1) . ' upload failed: ' . ($res['error'] ?? 'unknown');
                     continue;
                 }
 
-                // Check for upload errors
-                if ($file['error'][$i] !== UPLOAD_ERR_OK) {
-                    $fileErrors[] = 'File ' . ($i + 1) . ' upload failed.';
-                    continue;
-                }
-
-                // Check file size
-                if ($file['size'][$i] > MAX_FILE_SIZE) {
-                    $fileErrors[] = 'File ' . ($i + 1) . ' size exceeds the limit of 2MB.';
-                    continue;
-                }
-
-                // Check file type
-                $finfo = finfo_open(FILEINFO_MIME_TYPE);
-                $mimeType = finfo_file($finfo, $file['tmp_name'][$i]);
-                finfo_close($finfo);
-
-                if (!in_array($mimeType, $allowedTypes)) {
-                    $fileErrors[] = 'File ' . ($i + 1) . ' has invalid type. Allowed: PDF, JPEG.';
-                    continue;
-                }
-
-                // Generate unique filename
-                $extension = pathinfo($file['name'][$i], PATHINFO_EXTENSION);
-                $filename = uniqid() . '_' . time() . '_' . $i . '.' . $extension;
-                $targetPath = UPLOAD_DIR . $filename;
-
-                // Move uploaded file
-                if (move_uploaded_file($file['tmp_name'][$i], $targetPath)) {
-                    $uploadedFiles[] = $filename;
-                } else {
-                    $fileErrors[] = 'Failed to upload file ' . ($i + 1) . '.';
-                }
+                $uploadedFiles[] = str_replace(realpath(__DIR__) . DIRECTORY_SEPARATOR, '', $res['path']);
             }
 
-            if (!empty($uploadedFiles)) {
-                $result['files'][$field] = $uploadedFiles;
-            }
-            if (!empty($fileErrors)) {
-                $result['errors'][$field] = implode(' ', $fileErrors);
-            }
+            if (!empty($uploadedFiles)) $result['files'][$field] = $uploadedFiles;
+            if (!empty($fileErrors)) $result['errors'][$field] = implode(' ', $fileErrors);
+
         } else {
-            // Single file upload
-            if (empty($file['name'])) {
+            if (empty($file['name'])) continue;
+
+            $res = store_uploaded_file($file, $field, $allowedTypes, MAX_FILE_SIZE);
+            if (!$res['success']) {
+                $result['errors'][$field] = $res['error'] ?? 'Upload failed';
                 continue;
             }
 
-            // Check for upload errors
-            if ($file['error'] !== UPLOAD_ERR_OK) {
-                $result['errors'][$field] = 'File upload failed.';
-                continue;
-            }
-
-            // Check file size
-            if ($file['size'] > MAX_FILE_SIZE) {
-                $result['errors'][$field] = 'File size exceeds the limit of 2MB.';
-                continue;
-            }
-
-            // Check file type
-            $finfo = finfo_open(FILEINFO_MIME_TYPE);
-            $mimeType = finfo_file($finfo, $file['tmp_name']);
-            finfo_close($finfo);
-
-            if (!in_array($mimeType, $allowedTypes)) {
-                $result['errors'][$field] = 'Invalid file type. Allowed types: PDF, JPEG.';
-                continue;
-            }
-
-            // Generate unique filename
-            $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
-            $filename = uniqid() . '_' . time() . '.' . $extension;
-            $targetPath = UPLOAD_DIR . $filename;
-
-            // Move uploaded file
-            if (move_uploaded_file($file['tmp_name'], $targetPath)) {
-                $result['files'][$field] = $filename;
-            } else {
-                $result['errors'][$field] = 'Failed to upload file.';
-            }
+            $result['files'][$field] = str_replace(realpath(__DIR__) . DIRECTORY_SEPARATOR, '', $res['path']);
         }
     }
 
