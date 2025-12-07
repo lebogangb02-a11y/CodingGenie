@@ -1,6 +1,8 @@
 <?php
 require_once 'config.php';
 require_once 'session_config.php';
+require_once __DIR__ . '/includes/security_helpers.php';
+require_once __DIR__ . '/includes/upload_helper.php';
 
 // Check if user is logged in
 if (!isLoggedIn()) {
@@ -82,88 +84,44 @@ try {
         throw new Exception('Student details not found.');
     }
 
-    // Handle file uploads
+    // Handle file uploads via centralized helper
     $uploaded_files = [];
-    $upload_dir = UPLOAD_DIR;
-    
-    // Create upload directories if they don't exist
-    $subdirs = ['id_documents', 'matric_certificates', 'additional_documents'];
-    foreach ($subdirs as $subdir) {
-        $dir_path = $upload_dir . '/' . $subdir;
-        if (!is_dir($dir_path)) {
-            mkdir($dir_path, 0755, true);
+
+    // ID document
+    if (isset($_FILES['id_document'])) {
+        $res = store_uploaded_file($_FILES['id_document'], 'id_documents', ['application/pdf','image/jpeg','image/png'], MAX_FILE_SIZE);
+        if (!$res['success']) {
+            throw new Exception('ID upload failed: ' . $res['error']);
         }
+        $uploaded_files['id_document'] = str_replace(realpath(__DIR__) . DIRECTORY_SEPARATOR, '', $res['path']);
     }
 
-    // Upload ID document
-    if (isset($_FILES['id_document']) && $_FILES['id_document']['error'] === UPLOAD_ERR_OK) {
-        $file = $_FILES['id_document'];
-        $file_extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-        $allowed_extensions = ['pdf', 'jpg', 'jpeg', 'png'];
-        
-        if (!in_array($file_extension, $allowed_extensions)) {
-            throw new Exception('Invalid file type for ID document. Only PDF, JPG, and PNG files are allowed.');
+    // Matric certificate
+    if (isset($_FILES['matric_certificate'])) {
+        $res = store_uploaded_file($_FILES['matric_certificate'], 'matric_certificates', ['application/pdf','image/jpeg','image/png'], MAX_FILE_SIZE);
+        if (!$res['success']) {
+            throw new Exception('Matric upload failed: ' . $res['error']);
         }
-        
-        if ($file['size'] > MAX_FILE_SIZE) {
-            throw new Exception('ID document file size exceeds the maximum limit of ' . (MAX_FILE_SIZE / 1024 / 1024) . 'MB.');
-        }
-        
-        $filename = $student_id . '_id_' . time() . '.' . $file_extension;
-        $filepath = $upload_dir . '/id_documents/' . $filename;
-        
-        if (move_uploaded_file($file['tmp_name'], $filepath)) {
-            $uploaded_files['id_document'] = 'uploads/id_documents/' . $filename;
-        } else {
-            throw new Exception('Failed to upload ID document.');
-        }
+        $uploaded_files['matric_certificate'] = str_replace(realpath(__DIR__) . DIRECTORY_SEPARATOR, '', $res['path']);
     }
 
-    // Upload Matric certificate
-    if (isset($_FILES['matric_certificate']) && $_FILES['matric_certificate']['error'] === UPLOAD_ERR_OK) {
-        $file = $_FILES['matric_certificate'];
-        $file_extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-        $allowed_extensions = ['pdf', 'jpg', 'jpeg', 'png'];
-        
-        if (!in_array($file_extension, $allowed_extensions)) {
-            throw new Exception('Invalid file type for Matric certificate. Only PDF, JPG, and PNG files are allowed.');
-        }
-        
-        if ($file['size'] > MAX_FILE_SIZE) {
-            throw new Exception('Matric certificate file size exceeds the maximum limit of ' . (MAX_FILE_SIZE / 1024 / 1024) . 'MB.');
-        }
-        
-        $filename = $student_id . '_matric_' . time() . '.' . $file_extension;
-        $filepath = $upload_dir . '/matric_certificates/' . $filename;
-        
-        if (move_uploaded_file($file['tmp_name'], $filepath)) {
-            $uploaded_files['matric_certificate'] = 'uploads/matric_certificates/' . $filename;
-        } else {
-            throw new Exception('Failed to upload Matric certificate.');
-        }
-    }
-
-    // Upload additional documents
+    // Additional documents (up to 3)
     $additional_docs = [];
     if (isset($_FILES['additional_documents']) && is_array($_FILES['additional_documents']['name'])) {
-        $file_count = count($_FILES['additional_documents']['name']);
-        
-        for ($i = 0; $i < $file_count && $i < 3; $i++) {
-            if ($_FILES['additional_documents']['error'][$i] === UPLOAD_ERR_OK) {
-                $file_name = $_FILES['additional_documents']['name'][$i];
-                $file_tmp = $_FILES['additional_documents']['tmp_name'][$i];
-                $file_size = $_FILES['additional_documents']['size'][$i];
-                
-                $file_extension = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
-                $allowed_extensions = ['pdf', 'jpg', 'jpeg', 'png'];
-                
-                if (in_array($file_extension, $allowed_extensions) && $file_size <= MAX_FILE_SIZE) {
-                    $filename = $student_id . '_additional_' . ($i + 1) . '_' . time() . '.' . $file_extension;
-                    $filepath = $upload_dir . '/additional_documents/' . $filename;
-                    
-                    if (move_uploaded_file($file_tmp, $filepath)) {
-                        $additional_docs[] = 'uploads/additional_documents/' . $filename;
-                    }
+        $count = min(3, count($_FILES['additional_documents']['name']));
+        for ($i = 0; $i < $count; $i++) {
+            if (($_FILES['additional_documents']['error'][$i] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+                $fileArray = [
+                    'name' => $_FILES['additional_documents']['name'][$i],
+                    'type' => $_FILES['additional_documents']['type'][$i] ?? null,
+                    'tmp_name' => $_FILES['additional_documents']['tmp_name'][$i],
+                    'error' => $_FILES['additional_documents']['error'][$i],
+                    'size' => $_FILES['additional_documents']['size'][$i],
+                ];
+
+                $res = store_uploaded_file($fileArray, 'additional_documents', ['application/pdf','image/jpeg','image/png'], MAX_FILE_SIZE);
+                if ($res['success']) {
+                    $additional_docs[] = str_replace(realpath(__DIR__) . DIRECTORY_SEPARATOR, '', $res['path']);
                 }
             }
         }
