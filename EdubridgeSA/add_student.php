@@ -48,6 +48,9 @@ $form_data = [
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Server-side CSRF enforcement (best-effort, no-op if helper absent)
+    if (function_exists('require_csrf')) { require_csrf(); }
+
     // Collect and sanitize form data
     $form_data = [
         'first_name' => trim($_POST['first_name'] ?? ''),

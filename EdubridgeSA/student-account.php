@@ -30,6 +30,9 @@ $message_type = '';
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Server-side CSRF enforcement (best-effort)
+    if (function_exists('require_csrf')) { require_csrf(); }
+
     // CSRF protection (constant-time comparison)
     $postedToken = isset($_POST[CSRF_TOKEN_NAME]) ? (string)$_POST[CSRF_TOKEN_NAME] : '';
     $sessionToken = isset($_SESSION[CSRF_TOKEN_NAME]) ? (string)$_SESSION[CSRF_TOKEN_NAME] : '';

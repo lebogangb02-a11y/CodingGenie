@@ -111,6 +111,10 @@ $message = '';
 
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Enforce server-side CSRF (use require_csrf() when available)
+    if (function_exists('require_csrf')) {
+        require_csrf();
+    }
     $action = $_POST['action'] ?? '';
 
     // CSRF validation
