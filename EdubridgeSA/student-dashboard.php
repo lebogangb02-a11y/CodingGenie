@@ -23,66 +23,98 @@ $student_id = $_SESSION['student_id'] ?? '';
 // Resolve profile picture path (falls back to default avatar)
 $profile_picture = getProfilePicture([]);
 
-// Generate canonical Upload Documents URL for this session
+// OPTIMIZED: Consolidated queries + unified application resolution
 $upload_docs_url = 'document_upload.php';
+$activeChats = 0;
+$unreadChatMessages = 0;
+$resolvedRef = null;
+$resolvedId = null;
+
 try {
     $contactEmail = $_SESSION['student_email'] ?? $_SESSION['email'] ?? null;
-    $resolvedRef = null;
+    
     // Prefer session reference number if available
     if (!empty($reference_number)) {
         $resolvedRef = $reference_number;
+        $resolvedId = null; // Will resolve ID separately if needed
     }
-    // Fallback: resolve latest application by email and use its reference number
-    if (!$resolvedRef && $contactEmail) {
-        $stmt = $pdo->prepare("SELECT reference_number FROM applications WHERE email_address = ? ORDER BY updated_at DESC, id DESC LIMIT 1");
-        $stmt->execute([$contactEmail]);
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        if ($row && !empty($row['reference_number'])) {
-            $resolvedRef = $row['reference_number'];
+    
+    // OPTIMIZED: Single consolidated query for application resolution + chat stats
+    // This consolidates 4 previous separate queries into one
+    $sql = "
+        SELECT 
+            a.id as app_id,
+            a.reference_number,
+            COALESCE(c_count.active_count, 0) as active_chats,
+            COALESCE(m_count.unread_count, 0) as unread_messages
+        FROM applications a
+        LEFT JOIN (
+            SELECT student_id, COUNT(*) as active_count
+            FROM chat_conversations
+            WHERE student_id = ? AND status IN ('active', 'escalated')
+            GROUP BY student_id
+        ) c_count ON c_count.student_id = ?
+        LEFT JOIN (
+            SELECT c.student_id, COUNT(*) as unread_count
+            FROM chat_messages m
+            JOIN chat_conversations c ON m.conversation_id = c.id
+            WHERE m.sender_type IN ('admin', 'bot') AND m.is_read = FALSE
+            GROUP BY c.student_id
+        ) m_count ON m_count.student_id = ?
+        WHERE a.email_address = ? OR a.reference_number = ?
+        ORDER BY a.updated_at DESC, a.id DESC
+        LIMIT 1
+    ";
+    
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([$student_id, $student_id, $student_id, $contactEmail, $resolvedRef ?: '']);
+    $consolidated = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if ($consolidated && !empty($consolidated['app_id'])) {
+        $resolvedId = (int)$consolidated['app_id'];
+        if (!$resolvedRef && !empty($consolidated['reference_number'])) {
+            $resolvedRef = $consolidated['reference_number'];
+        }
+        $activeChats = (int)$consolidated['active_chats'];
+        $unreadChatMessages = (int)$consolidated['unread_messages'];
+    }
+    
+    // Fallback: if no consolidated result, try email-only lookup
+    if (!$resolvedId && $contactEmail) {
+        $stmt2 = $pdo->prepare("SELECT id, reference_number FROM applications WHERE email_address = ? ORDER BY updated_at DESC, id DESC LIMIT 1");
+        $stmt2->execute([$contactEmail]);
+        $row = $stmt2->fetch(PDO::FETCH_ASSOC);
+        if ($row) {
+            $resolvedId = (int)$row['id'];
+            if (!$resolvedRef && !empty($row['reference_number'])) {
+                $resolvedRef = $row['reference_number'];
+            }
         }
     }
-    // Final fallback: if a session ref exists, use it
-    if (!$resolvedRef) {
+    
+    // Final fallback: if session ref exists but no ID found yet, resolve by ref
+    if (!$resolvedId) {
         $sessionRef = $_SESSION['reference_number'] ?? null;
         if ($sessionRef) {
-            $resolvedRef = $sessionRef;
+            $stmt3 = $pdo->prepare("SELECT id, reference_number FROM applications WHERE reference_number = ? ORDER BY updated_at DESC, id DESC LIMIT 1");
+            $stmt3->execute([$sessionRef]);
+            $row3 = $stmt3->fetch(PDO::FETCH_ASSOC);
+            if ($row3) {
+                $resolvedId = (int)$row3['id'];
+                if (!$resolvedRef) {
+                    $resolvedRef = $row3['reference_number'];
+                }
+            }
         }
     }
+    
     if ($resolvedRef) {
         $upload_docs_url = 'document_upload.php?ref=' . urlencode($resolvedRef);
     }
 } catch (PDOException $e) {
-    error_log('student-dashboard upload link error: ' . $e->getMessage());
-}
-
-// Check for active chat conversations
-$activeChats = 0;
-$unreadChatMessages = 0;
-try {
-    $chatTableExists = $pdo->query("SHOW TABLES LIKE 'chat_conversations'")->rowCount() > 0;
-    if ($chatTableExists && $student_id) {
-        // Count active conversations
-        $stmt = $pdo->prepare("
-            SELECT COUNT(*) as active_chats 
-            FROM chat_conversations 
-            WHERE student_id = ? AND status IN ('active', 'escalated')
-        ");
-        $stmt->execute([$student_id]);
-        $activeChats = $stmt->fetchColumn();
-
-        // Count unread messages
-        $stmt = $pdo->prepare("
-            SELECT COUNT(*) as unread_messages 
-            FROM chat_messages m
-            JOIN chat_conversations c ON m.conversation_id = c.id
-            WHERE c.student_id = ? AND m.sender_type IN ('admin', 'bot') AND m.is_read = FALSE
-        ");
-        $stmt->execute([$student_id]);
-        $unreadChatMessages = $stmt->fetchColumn();
-    }
+    error_log('student-dashboard consolidated query error: ' . $e->getMessage());
 } catch (Exception $e) {
-    // Silently fail for chat stats
-    error_log('Chat stats error: ' . $e->getMessage());
+    error_log('student-dashboard error: ' . $e->getMessage());
 }
 
 // Smart progress data (historical-based estimates)
@@ -106,33 +138,11 @@ $completion_percentage = 0;
 $application_id = null;
 $has_all_required_docs = false;
 try {
-    // Reuse resolved application id if available
+    // Use resolved application id from consolidated query block above
     if (isset($resolvedId) && $resolvedId) {
         $application_id = (int)$resolvedId;
-    } else {
-        // Fallback: try to locate latest application via email or reference number
-        $contactEmail = $_SESSION['student_email'] ?? $_SESSION['email'] ?? null;
-        if ($contactEmail) {
-            $stmt = $pdo->prepare("SELECT id FROM applications WHERE email_address = ? ORDER BY updated_at DESC, id DESC LIMIT 1");
-            $stmt->execute([$contactEmail]);
-            $row = $stmt->fetch(PDO::FETCH_ASSOC);
-            if ($row && !empty($row['id'])) {
-                $application_id = (int)$row['id'];
-            }
-        }
-        if (!$application_id) {
-            $sessionRef = $_SESSION['reference_number'] ?? null;
-            if ($sessionRef) {
-                $stmt2 = $pdo->prepare("SELECT id FROM applications WHERE reference_number = ? ORDER BY updated_at DESC, id DESC LIMIT 1");
-                $stmt2->execute([$sessionRef]);
-                $row2 = $stmt2->fetch(PDO::FETCH_ASSOC);
-                if ($row2 && !empty($row2['id'])) {
-                    $application_id = (int)$row2['id'];
-                }
-            }
-        }
     }
-
+    
     // If we found an application, compute progress using core milestones
     if ($application_id) {
         $total_steps = 4;
