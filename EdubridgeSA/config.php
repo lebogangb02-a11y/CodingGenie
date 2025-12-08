@@ -6,6 +6,13 @@
  * Updated: String-based SMTP_SECURE to avoid PHPMailer class loading in config
  */
 
+// Load environment variables from .env file (if bootstrap_env.php exists)
+// This must be loaded before any other config to populate getenv()
+$bootstrap_file = __DIR__ . '/bootstrap_env.php';
+if (file_exists($bootstrap_file)) {
+    require_once $bootstrap_file;
+}
+
 // Security: Prevent direct access to this config file
 if (basename($_SERVER['PHP_SELF'] ?? '') === 'config.php') {
     header('HTTP/1.0 403 Forbidden');
