@@ -19,6 +19,9 @@ $message_type = '';
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Server-side CSRF enforcement (best-effort)
+    if (function_exists('require_csrf')) { require_csrf(); }
+
     // CSRF protection
     if (!isset($_POST[CSRF_TOKEN_NAME]) || $_POST[CSRF_TOKEN_NAME] !== $_SESSION[CSRF_TOKEN_NAME]) {
         $message = 'Security token mismatch. Please try again.';

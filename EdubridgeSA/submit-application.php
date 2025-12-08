@@ -36,6 +36,9 @@ if (!$application) {
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_application'])) {
+    // Server-side CSRF enforcement (best-effort)
+    if (function_exists('require_csrf')) { require_csrf(); }
+
     if (!isset($_POST[CSRF_TOKEN_NAME]) || $_POST[CSRF_TOKEN_NAME] !== $csrfToken) {
         $submitError = 'Invalid request token.';
     } else if ($application) {

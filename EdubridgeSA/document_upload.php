@@ -62,6 +62,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['lookup_application'])
 
 // Handle document upload
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['upload_documents'])) {
+    // Server-side CSRF enforcement (best-effort)
+    if (function_exists('require_csrf')) { require_csrf(); }
+
     // CSRF validation
     if (!isset($_POST[CSRF_TOKEN_NAME]) || ($_POST[CSRF_TOKEN_NAME] ?? '') !== ($_SESSION[CSRF_TOKEN_NAME] ?? '')) {
         http_response_code(403);

@@ -227,6 +227,9 @@ $success = '';
 // Handle POST actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
+        // Server-side CSRF enforcement (best-effort)
+        if (function_exists('require_csrf')) { require_csrf(); }
+
         // Validate CSRF for every submission
         check_csrf();
         ensure_app($pdo);
