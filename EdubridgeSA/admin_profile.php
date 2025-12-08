@@ -34,7 +34,7 @@ if (isset($pdo) && $pdo instanceof PDO) {
             INDEX idx_role (role),
             INDEX idx_active (is_active)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-        
+
         // Create admin activity logs table if not exists
         $pdo->exec("CREATE TABLE IF NOT EXISTS admin_activity_logs (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -49,7 +49,7 @@ if (isset($pdo) && $pdo instanceof PDO) {
             INDEX idx_created_at (created_at),
             INDEX idx_action (action)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-        
+
         // Create admin login history table
         $pdo->exec("CREATE TABLE IF NOT EXISTS admin_login_history (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -64,7 +64,6 @@ if (isset($pdo) && $pdo instanceof PDO) {
             INDEX idx_created_at (created_at),
             INDEX idx_success (success)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-        
     } catch (Throwable $e) {
         $msg = 'Database initialization warning: ' . htmlspecialchars($e->getMessage());
         $msgType = 'warning';
@@ -74,19 +73,21 @@ if (isset($pdo) && $pdo instanceof PDO) {
 // Handle password change
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Enforce server-side CSRF if available
-    if (function_exists('require_csrf')) { require_csrf(); }
+    if (function_exists('require_csrf')) {
+        require_csrf();
+    }
     if (isset($_POST['change_password']) && isset($pdo) && $pdo instanceof PDO) {
         $currentPass = trim($_POST['current_password'] ?? '');
         $newPass = trim($_POST['new_password'] ?? '');
         $confirmPass = trim($_POST['confirm_password'] ?? '');
-        
+
         // Enhanced validation
         $errors = [];
-        
+
         if (empty($currentPass)) {
             $errors[] = 'Current password is required';
         }
-        
+
         if (empty($newPass)) {
             $errors[] = 'New password is required';
         } elseif (strlen($newPass) < 8) {
@@ -98,18 +99,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif (!preg_match('/[0-9]/', $newPass)) {
             $errors[] = 'New password must contain at least one number';
         }
-        
+
         if ($newPass !== $confirmPass) {
             $errors[] = 'New passwords do not match';
         }
-        
+
         // Verify current password
         if (empty($errors)) {
             try {
                 $stmt = $pdo->prepare('SELECT password_hash FROM admins WHERE username = ? LIMIT 1');
                 $stmt->execute([$username]);
                 $admin = $stmt->fetch(PDO::FETCH_ASSOC);
-                
+
                 if (!$admin || !password_verify($currentPass, $admin['password_hash'])) {
                     $errors[] = 'Current password is incorrect';
                 }
@@ -117,16 +118,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $errors[] = 'Error verifying current password';
             }
         }
-        
+
         if (empty($errors)) {
             try {
                 $hash = password_hash($newPass, PASSWORD_DEFAULT);
                 $stmt = $pdo->prepare('UPDATE admins SET password_hash = ?, updated_at = NOW() WHERE username = ?');
                 $stmt->execute([$hash, $username]);
-                
+
                 $msg = 'Password updated successfully.';
                 $msgType = 'success';
-                
+
                 // Log activity
                 try {
                     $logStmt = $pdo->prepare('INSERT INTO admin_activity_logs (admin_username, admin_id, action, details, ip_address, user_agent) VALUES (?, ?, ?, ?, ?, ?)');
@@ -138,8 +139,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $_SERVER['REMOTE_ADDR'] ?? 'unknown',
                         $_SERVER['HTTP_USER_AGENT'] ?? 'unknown'
                     ]);
-                } catch (Throwable $ignore) {}
-                
+                } catch (Throwable $ignore) {
+                }
             } catch (Throwable $e) {
                 $msg = 'Error updating password: ' . htmlspecialchars($e->getMessage());
                 $msgType = 'danger';
@@ -149,26 +150,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $msgType = 'danger';
         }
     }
-    
+
     // Handle profile update
     if (isset($_POST['update_profile']) && isset($pdo) && $pdo instanceof PDO) {
         $email = trim($_POST['email'] ?? '');
         $name = trim($_POST['name'] ?? '');
-        
+
         $errors = [];
-        
+
         if (!empty($email) && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $errors[] = 'Invalid email format';
         }
-        
+
         if (empty($errors)) {
             try {
                 $stmt = $pdo->prepare('UPDATE admins SET email = ?, name = ?, updated_at = NOW() WHERE username = ?');
                 $stmt->execute([$email, $name, $username]);
-                
+
                 $msg = 'Profile updated successfully.';
                 $msgType = 'success';
-                
+
                 // Log activity
                 try {
                     $logStmt = $pdo->prepare('INSERT INTO admin_activity_logs (admin_username, admin_id, action, details, ip_address, user_agent) VALUES (?, ?, ?, ?, ?, ?)');
@@ -180,8 +181,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $_SERVER['REMOTE_ADDR'] ?? 'unknown',
                         $_SERVER['HTTP_USER_AGENT'] ?? 'unknown'
                     ]);
-                } catch (Throwable $ignore) {}
-                
+                } catch (Throwable $ignore) {
+                }
             } catch (Throwable $e) {
                 $msg = 'Error updating profile: ' . htmlspecialchars($e->getMessage());
                 $msgType = 'danger';
@@ -199,72 +200,94 @@ if (isset($pdo) && $pdo instanceof PDO) {
         $stmt = $pdo->prepare('SELECT id, username, email, name, role, is_active, last_login, created_at, updated_at FROM admins WHERE username = ? LIMIT 1');
         $stmt->execute([$username]);
         $adminRow = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
-        
+
         // Load recent activity logs
         $activityStmt = $pdo->prepare('SELECT action, details, ip_address, created_at FROM admin_activity_logs WHERE admin_username = ? ORDER BY created_at DESC LIMIT 10');
         $activityStmt->execute([$username]);
         $activityLogs = $activityStmt->fetchAll(PDO::FETCH_ASSOC);
-        
+
         // Load login history
         $loginStmt = $pdo->prepare('SELECT ip_address, success, failure_reason, created_at FROM admin_login_history WHERE admin_username = ? ORDER BY created_at DESC LIMIT 10');
         $loginStmt->execute([$username]);
         $loginHistory = $loginStmt->fetchAll(PDO::FETCH_ASSOC);
-        
-    } catch (Throwable $e) { 
+    } catch (Throwable $e) {
         // Silently fail - these are non-critical features
     }
 }
 
 // Function to format time ago
-function time_ago($datetime) {
+function time_ago($datetime)
+{
     $time = strtotime($datetime);
     $now = time();
     $diff = $now - $time;
-    
+
     if ($diff < 60) return 'Just now';
-    if ($diff < 3600) return floor($diff/60) . ' min ago';
-    if ($diff < 86400) return floor($diff/3600) . ' hours ago';
-    if ($diff < 2592000) return floor($diff/86400) . ' days ago';
+    if ($diff < 3600) return floor($diff / 60) . ' min ago';
+    if ($diff < 86400) return floor($diff / 3600) . ' hours ago';
+    if ($diff < 2592000) return floor($diff / 86400) . ' days ago';
     return date('M j, Y', $time);
 }
 
 admin_header('Admin Profile');
 ?>
 <style>
-.profile-card {
-    border: none;
-    border-radius: 15px;
-    transition: transform 0.2s;
-}
-.profile-card:hover {
-    transform: translateY(-2px);
-}
-.stats-card {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    border-radius: 15px;
-}
-.activity-item {
-    border-left: 3px solid #007bff;
-    padding-left: 15px;
-    margin-bottom: 1rem;
-}
-.login-success {
-    border-left-color: #28a745;
-}
-.login-failure {
-    border-left-color: #dc3545;
-}
-.password-strength {
-    height: 5px;
-    border-radius: 2px;
-    margin-top: 5px;
-}
-.strength-weak { background-color: #dc3545; width: 25%; }
-.strength-fair { background-color: #ffc107; width: 50%; }
-.strength-good { background-color: #28a745; width: 75%; }
-.strength-strong { background-color: #20c997; width: 100%; }
+    .profile-card {
+        border: none;
+        border-radius: 15px;
+        transition: transform 0.2s;
+    }
+
+    .profile-card:hover {
+        transform: translateY(-2px);
+    }
+
+    .stats-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 15px;
+    }
+
+    .activity-item {
+        border-left: 3px solid #007bff;
+        padding-left: 15px;
+        margin-bottom: 1rem;
+    }
+
+    .login-success {
+        border-left-color: #28a745;
+    }
+
+    .login-failure {
+        border-left-color: #dc3545;
+    }
+
+    .password-strength {
+        height: 5px;
+        border-radius: 2px;
+        margin-top: 5px;
+    }
+
+    .strength-weak {
+        background-color: #dc3545;
+        width: 25%;
+    }
+
+    .strength-fair {
+        background-color: #ffc107;
+        width: 50%;
+    }
+
+    .strength-good {
+        background-color: #28a745;
+        width: 75%;
+    }
+
+    .strength-strong {
+        background-color: #20c997;
+        width: 100%;
+    }
 </style>
 
 <div class="container-fluid">
@@ -294,27 +317,27 @@ admin_header('Admin Profile');
                                     <input type="text" class="form-control" value="<?php echo htmlspecialchars($username); ?>" readonly>
                                     <div class="form-text">Username cannot be changed</div>
                                 </div>
-                                
+
                                 <div class="mb-3">
                                     <label class="form-label">Full Name</label>
-                                    <input type="text" name="name" class="form-control" 
-                                           value="<?php echo htmlspecialchars($adminRow['name'] ?? ''); ?>" 
-                                           placeholder="Enter your full name">
+                                    <input type="text" name="name" class="form-control"
+                                        value="<?php echo htmlspecialchars($adminRow['name'] ?? ''); ?>"
+                                        placeholder="Enter your full name">
                                 </div>
-                                
+
                                 <div class="mb-3">
                                     <label class="form-label">Email Address</label>
-                                    <input type="email" name="email" class="form-control" 
-                                           value="<?php echo htmlspecialchars($adminRow['email'] ?? ''); ?>" 
-                                           placeholder="your.email@example.com">
+                                    <input type="email" name="email" class="form-control"
+                                        value="<?php echo htmlspecialchars($adminRow['email'] ?? ''); ?>"
+                                        placeholder="your.email@example.com">
                                 </div>
-                                
+
                                 <div class="mb-3">
                                     <label class="form-label">Role</label>
-                                    <input type="text" class="form-control" 
-                                           value="<?php echo htmlspecialchars(ucfirst($role)); ?>" readonly>
+                                    <input type="text" class="form-control"
+                                        value="<?php echo htmlspecialchars(ucfirst($role)); ?>" readonly>
                                 </div>
-                                
+
                                 <button type="submit" name="update_profile" class="btn btn-primary">
                                     <i class="bi bi-check-circle me-1"></i>Update Profile
                                 </button>
@@ -337,24 +360,24 @@ admin_header('Admin Profile');
                                     <label class="form-label">Current Password</label>
                                     <input type="password" name="current_password" class="form-control" required>
                                 </div>
-                                
+
                                 <div class="mb-3">
                                     <label class="form-label">New Password</label>
-                                    <input type="password" name="new_password" class="form-control" id="newPassword" required 
-                                           pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}" 
-                                           title="Must contain at least 8 characters, one uppercase, one lowercase, and one number">
+                                    <input type="password" name="new_password" class="form-control" id="newPassword" required
+                                        pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}"
+                                        title="Must contain at least 8 characters, one uppercase, one lowercase, and one number">
                                     <div class="password-strength" id="passwordStrength"></div>
                                     <div class="form-text">
                                         <small>Password must contain at least 8 characters with uppercase, lowercase, and numbers</small>
                                     </div>
                                 </div>
-                                
+
                                 <div class="mb-3">
                                     <label class="form-label">Confirm New Password</label>
                                     <input type="password" name="confirm_password" class="form-control" id="confirmPassword" required>
                                     <div class="form-text" id="passwordMatch"></div>
                                 </div>
-                                
+
                                 <button type="submit" name="change_password" class="btn btn-warning">
                                     <i class="bi bi-key me-1"></i>Change Password
                                 </button>
@@ -484,61 +507,61 @@ admin_header('Admin Profile');
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const newPassword = document.getElementById('newPassword');
-    const confirmPassword = document.getElementById('confirmPassword');
-    const passwordStrength = document.getElementById('passwordStrength');
-    const passwordMatch = document.getElementById('passwordMatch');
-    const passwordForm = document.getElementById('passwordForm');
+    document.addEventListener('DOMContentLoaded', function() {
+        const newPassword = document.getElementById('newPassword');
+        const confirmPassword = document.getElementById('confirmPassword');
+        const passwordStrength = document.getElementById('passwordStrength');
+        const passwordMatch = document.getElementById('passwordMatch');
+        const passwordForm = document.getElementById('passwordForm');
 
-    // Password strength indicator
-    newPassword.addEventListener('input', function() {
-        const password = this.value;
-        let strength = 0;
-        
-        if (password.length >= 8) strength++;
-        if (password.match(/[a-z]/)) strength++;
-        if (password.match(/[A-Z]/)) strength++;
-        if (password.match(/[0-9]/)) strength++;
-        if (password.match(/[^a-zA-Z0-9]/)) strength++;
-        
-        passwordStrength.className = 'password-strength';
-        if (password.length === 0) {
-            passwordStrength.style.width = '0%';
-        } else if (strength <= 2) {
-            passwordStrength.className += ' strength-weak';
-        } else if (strength === 3) {
-            passwordStrength.className += ' strength-fair';
-        } else if (strength === 4) {
-            passwordStrength.className += ' strength-good';
-        } else {
-            passwordStrength.className += ' strength-strong';
-        }
-    });
+        // Password strength indicator
+        newPassword.addEventListener('input', function() {
+            const password = this.value;
+            let strength = 0;
 
-    // Password confirmation check
-    confirmPassword.addEventListener('input', function() {
-        if (newPassword.value !== this.value) {
-            passwordMatch.innerHTML = '<span class="text-danger"><i class="bi bi-x-circle me-1"></i>Passwords do not match</span>';
-        } else {
-            passwordMatch.innerHTML = '<span class="text-success"><i class="bi bi-check-circle me-1"></i>Passwords match</span>';
-        }
-    });
+            if (password.length >= 8) strength++;
+            if (password.match(/[a-z]/)) strength++;
+            if (password.match(/[A-Z]/)) strength++;
+            if (password.match(/[0-9]/)) strength++;
+            if (password.match(/[^a-zA-Z0-9]/)) strength++;
 
-    // Form submission validation
-    passwordForm.addEventListener('submit', function(e) {
-        if (newPassword.value !== confirmPassword.value) {
-            e.preventDefault();
-            alert('Please make sure your passwords match.');
-            confirmPassword.focus();
-        }
-        
-        // Add loading state
-        const submitBtn = this.querySelector('button[type="submit"]');
-        submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Updating...';
-        submitBtn.disabled = true;
+            passwordStrength.className = 'password-strength';
+            if (password.length === 0) {
+                passwordStrength.style.width = '0%';
+            } else if (strength <= 2) {
+                passwordStrength.className += ' strength-weak';
+            } else if (strength === 3) {
+                passwordStrength.className += ' strength-fair';
+            } else if (strength === 4) {
+                passwordStrength.className += ' strength-good';
+            } else {
+                passwordStrength.className += ' strength-strong';
+            }
+        });
+
+        // Password confirmation check
+        confirmPassword.addEventListener('input', function() {
+            if (newPassword.value !== this.value) {
+                passwordMatch.innerHTML = '<span class="text-danger"><i class="bi bi-x-circle me-1"></i>Passwords do not match</span>';
+            } else {
+                passwordMatch.innerHTML = '<span class="text-success"><i class="bi bi-check-circle me-1"></i>Passwords match</span>';
+            }
+        });
+
+        // Form submission validation
+        passwordForm.addEventListener('submit', function(e) {
+            if (newPassword.value !== confirmPassword.value) {
+                e.preventDefault();
+                alert('Please make sure your passwords match.');
+                confirmPassword.focus();
+            }
+
+            // Add loading state
+            const submitBtn = this.querySelector('button[type="submit"]');
+            submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Updating...';
+            submitBtn.disabled = true;
+        });
     });
-});
 </script>
 
 <?php admin_footer(); ?>

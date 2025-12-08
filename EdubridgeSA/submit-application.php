@@ -37,7 +37,9 @@ if (!$application) {
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_application'])) {
     // Server-side CSRF enforcement (best-effort)
-    if (function_exists('require_csrf')) { require_csrf(); }
+    if (function_exists('require_csrf')) {
+        require_csrf();
+    }
 
     if (!isset($_POST[CSRF_TOKEN_NAME]) || $_POST[CSRF_TOKEN_NAME] !== $csrfToken) {
         $submitError = 'Invalid request token.';
@@ -60,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_application'])
                 $appStmt = $pdo->prepare('SELECT * FROM applications WHERE id = ?');
                 $appStmt->execute([(int)$application['id']]);
                 $appData = $appStmt->fetch(PDO::FETCH_ASSOC);
-                
+
                 if ($appData) {
                     createApplicationNotification($pdo, (int)$application['id'], [
                         'first_name' => $appData['full_name'] ?? $appData['first_name'] ?? '',
@@ -90,22 +92,67 @@ if ($application) {
 ?>
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta charset="utf-8">
     <title>Submit Application - EduBridgeSA</title>
     <link rel="stylesheet" href="styles.css">
     <style>
-        .container { max-width: 720px; margin: 30px auto; padding: 20px; }
-        .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; }
-        .btn { display: inline-flex; align-items: center; gap: 8px; border-radius: 6px; padding: 10px 16px; text-decoration: none; }
-        .btn-primary { background: #1a5fb4; color: #fff; }
-        .btn-success { background: #2e7d32; color: #fff; }
-        .btn-secondary { background: #374151; color: #fff; }
-        .msg { margin-top: 12px; padding: 10px; border-radius: 6px; }
-        .msg.error { background: #fee2e2; color: #b91c1c; }
-        .msg.success { background: #ecfdf5; color: #065f46; }
+        .container {
+            max-width: 720px;
+            margin: 30px auto;
+            padding: 20px;
+        }
+
+        .card {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border-radius: 6px;
+            padding: 10px 16px;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: #1a5fb4;
+            color: #fff;
+        }
+
+        .btn-success {
+            background: #2e7d32;
+            color: #fff;
+        }
+
+        .btn-secondary {
+            background: #374151;
+            color: #fff;
+        }
+
+        .msg {
+            margin-top: 12px;
+            padding: 10px;
+            border-radius: 6px;
+        }
+
+        .msg.error {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
+        .msg.success {
+            background: #ecfdf5;
+            color: #065f46;
+        }
     </style>
 </head>
+
 <body>
     <div class="container">
         <div class="card">
@@ -136,4 +183,5 @@ if ($application) {
         </div>
     </div>
 </body>
+
 </html>

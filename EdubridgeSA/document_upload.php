@@ -46,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['lookup_application'])
     } else {
         try {
             $pdo = getDBConnection();
-            $stmt = $pdo->prepare("SELECT * FROM applications WHERE reference_number = ?");
+            $stmt = $pdo->prepare("SELECT id, reference_number, email_address, application_status, created_at FROM applications WHERE reference_number = ?");
             $stmt->execute([$reference_number]);
             $application = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -63,7 +63,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['lookup_application'])
 // Handle document upload
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['upload_documents'])) {
     // Server-side CSRF enforcement (best-effort)
-    if (function_exists('require_csrf')) { require_csrf(); }
+    if (function_exists('require_csrf')) {
+        require_csrf();
+    }
 
     // CSRF validation
     if (!isset($_POST[CSRF_TOKEN_NAME]) || ($_POST[CSRF_TOKEN_NAME] ?? '') !== ($_SESSION[CSRF_TOKEN_NAME] ?? '')) {
@@ -75,7 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['upload_documents'])) 
         try {
             $pdo = getDBConnection();
             // Fetch full application details
-            $stmt = $pdo->prepare("SELECT * FROM applications WHERE reference_number = ?");
+            $stmt = $pdo->prepare("SELECT id, reference_number, email_address, application_status, created_at FROM applications WHERE reference_number = ?");
             $stmt->execute([$reference_number]);
             $applicationRow = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -164,7 +166,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['upload_documents'])) 
 if (!empty($reference_number) && !$application) {
     try {
         $pdo = getDBConnection();
-        $stmt = $pdo->prepare("SELECT * FROM applications WHERE reference_number = ?");
+        $stmt = $pdo->prepare("SELECT id, reference_number, email_address, application_status, created_at FROM applications WHERE reference_number = ?");
         $stmt->execute([$reference_number]);
         $application = $stmt->fetch(PDO::FETCH_ASSOC);
     } catch (Exception $e) {
@@ -177,7 +179,7 @@ $existing_documents = [];
 if ($application) {
     try {
         $pdo = getDBConnection();
-        $stmt = $pdo->prepare("SELECT * FROM documents WHERE application_id = ? ORDER BY uploaded_at DESC");
+        $stmt = $pdo->prepare("SELECT id, application_id, doc_type, file_name, file_path, file_size, uploaded_at FROM documents WHERE application_id = ? ORDER BY uploaded_at DESC");
         $stmt->execute([$application['id']]);
         $existing_documents = $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (Exception $e) {

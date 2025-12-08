@@ -4,7 +4,8 @@ if (session_status() === PHP_SESSION_NONE) session_start();
 require_once __DIR__ . '/session_config.php';
 require_once __DIR__ . '/config.php';
 
-function ensure_chat_tables(PDO $pdo): void {
+function ensure_chat_tables(PDO $pdo): void
+{
     // Create chat tables if they don't exist. Uses a generic schema compatible
     // with most prior implementations of chat_conversations and chat_messages.
     $pdo->exec("CREATE TABLE IF NOT EXISTS chat_conversations (
@@ -31,9 +32,10 @@ function ensure_chat_tables(PDO $pdo): void {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 }
 
-function get_or_create_conversation(PDO $pdo, string $ownerUsername, ?string $title = null): array {
+function get_or_create_conversation(PDO $pdo, string $ownerUsername, ?string $title = null): array
+{
     ensure_chat_tables($pdo);
-    $stmt = $pdo->prepare('SELECT * FROM chat_conversations WHERE owner_username = ? ORDER BY updated_at DESC LIMIT 1');
+    $stmt = $pdo->prepare('SELECT id, title, owner_username, created_at, updated_at FROM chat_conversations WHERE owner_username = ? ORDER BY updated_at DESC LIMIT 1');
     $stmt->execute([$ownerUsername]);
     $conv = $stmt->fetch(PDO::FETCH_ASSOC);
     if ($conv) return $conv;
@@ -50,25 +52,28 @@ function get_or_create_conversation(PDO $pdo, string $ownerUsername, ?string $ti
     ];
 }
 
-function add_message(PDO $pdo, int $conversationId, string $senderType, ?string $senderUsername, string $content): int {
+function add_message(PDO $pdo, int $conversationId, string $senderType, ?string $senderUsername, string $content): int
+{
     $stmt = $pdo->prepare('INSERT INTO chat_messages (conversation_id, sender_type, sender_username, content) VALUES (?, ?, ?, ?)');
     $stmt->execute([$conversationId, $senderType, $senderUsername, $content]);
     $pdo->prepare('UPDATE chat_conversations SET updated_at = NOW() WHERE id = ?')->execute([$conversationId]);
     return (int)$pdo->lastInsertId();
 }
 
-function list_messages(PDO $pdo, int $conversationId, ?int $afterId = null, int $limit = 100): array {
+function list_messages(PDO $pdo, int $conversationId, ?int $afterId = null, int $limit = 100): array
+{
     if ($afterId) {
-        $stmt = $pdo->prepare('SELECT * FROM chat_messages WHERE conversation_id = ? AND id > ? ORDER BY id ASC LIMIT ?');
+        $stmt = $pdo->prepare('SELECT id, conversation_id, sender_type, sender_username, content, created_at FROM chat_messages WHERE conversation_id = ? AND id > ? ORDER BY id ASC LIMIT ?');
         $stmt->execute([$conversationId, $afterId, $limit]);
     } else {
-        $stmt = $pdo->prepare('SELECT * FROM chat_messages WHERE conversation_id = ? ORDER BY id ASC LIMIT ?');
+        $stmt = $pdo->prepare('SELECT id, conversation_id, sender_type, sender_username, content, created_at FROM chat_messages WHERE conversation_id = ? ORDER BY id ASC LIMIT ?');
         $stmt->execute([$conversationId, $limit]);
     }
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-function smart_bot_reply(PDO $pdo, string $username, string $userMessage): string {
+function smart_bot_reply(PDO $pdo, string $username, string $userMessage): string
+{
     $q = strtolower($userMessage);
 
     // Quick keyword-based intent detection with graceful DB fallbacks
@@ -79,7 +84,8 @@ function smart_bot_reply(PDO $pdo, string $username, string $userMessage): strin
             if (!empty($row['next_deadline'])) {
                 return 'The next application deadline is ' . date('M j, Y', strtotime($row['next_deadline'])) . '. Would you like a checklist?';
             }
-        } catch (Throwable $e) {}
+        } catch (Throwable $e) {
+        }
         return 'I couldn’t find a deadline in the system. You can check the Dashboard → Pending Applications for more details.';
     }
 
@@ -90,7 +96,8 @@ function smart_bot_reply(PDO $pdo, string $username, string $userMessage): strin
             if (isset($row['docs'])) {
                 return 'There are currently ' . (int)$row['docs'] . ' uploaded documents. You can manage them in Manage Students → Documents.';
             }
-        } catch (Throwable $e) {}
+        } catch (Throwable $e) {
+        }
         return 'If you need to upload or verify documents, go to Manage Students and open the student profile, then use Document Upload.';
     }
 
@@ -101,7 +108,8 @@ function smart_bot_reply(PDO $pdo, string $username, string $userMessage): strin
             if ($row) {
                 return 'Applications: total ' . (int)$row['total'] . ', pending ' . (int)$row['pending'] . ', approved ' . (int)$row['approved'] . '. Need a list of pending?';
             }
-        } catch (Throwable $e) {}
+        } catch (Throwable $e) {
+        }
         return 'You can view applications and their statuses from the Admin Dashboard. Ask me “show pending list” for more.';
     }
 
@@ -112,5 +120,3 @@ function smart_bot_reply(PDO $pdo, string $username, string $userMessage): strin
     // Default response
     return 'I’m here to help with applications, documents, and deadlines. Ask me about counts, upcoming dates, or where to find actions.';
 }
-
-?>

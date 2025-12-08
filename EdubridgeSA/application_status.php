@@ -18,7 +18,9 @@ $reference_number = $_GET['ref'] ?? $_POST['reference_number'] ?? '';
 // Handle reference number lookup
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['check_status'])) {
     // Server-side CSRF enforcement (best-effort)
-    if (function_exists('require_csrf')) { require_csrf(); }
+    if (function_exists('require_csrf')) {
+        require_csrf();
+    }
 
     $reference_number = sanitizeInput($_POST['reference_number']);
 
@@ -86,11 +88,11 @@ if (!empty($reference_number)) {
             $application_id = $application['id'];
 
             // Query 2: Get documents and status history together (batch fetch)
-            $stmt = $pdo->prepare("SELECT * FROM application_documents WHERE application_id = ? ORDER BY id DESC");
+            $stmt = $pdo->prepare("SELECT id, document_type, file_path, file_size, created_at, updated_at FROM application_documents WHERE application_id = ? ORDER BY id DESC");
             $stmt->execute([$application_id]);
             $documents = $stmt->fetchAll();
 
-            $stmt = $pdo->prepare("SELECT * FROM application_status_history WHERE application_id = ? ORDER BY created_at DESC");
+            $stmt = $pdo->prepare("SELECT id, application_id, status, changed_by, changed_at, notes FROM application_status_history WHERE application_id = ? ORDER BY created_at DESC");
             $stmt->execute([$application_id]);
             $status_history = $stmt->fetchAll();
         }

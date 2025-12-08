@@ -9,14 +9,16 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-function csrf_token() : string {
+function csrf_token(): string
+{
     if (empty($_SESSION['csrf_token'])) {
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
     }
     return $_SESSION['csrf_token'];
 }
 
-function require_csrf() : void {
+function require_csrf(): void
+{
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $token = $_POST['csrf_token'] ?? '';
         if (!$token || !hash_equals($_SESSION['csrf_token'] ?? '', $token)) {
@@ -26,7 +28,8 @@ function require_csrf() : void {
     }
 }
 
-function require_admin_session(array $roles = ['super','admin','staff']) : array {
+function require_admin_session(array $roles = ['super', 'admin', 'staff']): array
+{
     if (empty($_SESSION['admin_id']) || empty($_SESSION['admin_username'])) {
         header('Location: /login.php');
         exit;
@@ -43,15 +46,18 @@ function require_admin_session(array $roles = ['super','admin','staff']) : array
     return $admin;
 }
 
-function sanitize_string(string $v) : string {
+function sanitize_string(string $v): string
+{
     return trim(filter_var($v, FILTER_SANITIZE_STRING, FILTER_FLAG_NO_ENCODE_QUOTES));
 }
 
-function sanitize_email(string $v) : string {
+function sanitize_email(string $v): string
+{
     return trim(filter_var($v, FILTER_SANITIZE_EMAIL));
 }
 
-function validate_password_strength(string $pwd) : array {
+function validate_password_strength(string $pwd): array
+{
     $errors = [];
     if (strlen($pwd) < 10) $errors[] = 'Password must be at least 10 characters.';
     if (!preg_match('/[A-Z]/', $pwd)) $errors[] = 'Include at least one uppercase letter.';
@@ -60,23 +66,26 @@ function validate_password_strength(string $pwd) : array {
     return $errors;
 }
 
-function get_admin_by_id(int $id) : ?array {
+function get_admin_by_id(int $id): ?array
+{
     global $pdo;
-    $stmt = $pdo->prepare('SELECT * FROM admins WHERE id = ? LIMIT 1');
+    $stmt = $pdo->prepare('SELECT id, username, email, password_hash, role, created_at FROM admins WHERE id = ? LIMIT 1');
     $stmt->execute([$id]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
     return $row ?: null;
 }
 
-function get_admin_by_username(string $username) : ?array {
+function get_admin_by_username(string $username): ?array
+{
     global $pdo;
-    $stmt = $pdo->prepare('SELECT * FROM admins WHERE username = ? LIMIT 1');
+    $stmt = $pdo->prepare('SELECT id, username, email, password_hash, role, created_at FROM admins WHERE username = ? LIMIT 1');
     $stmt->execute([$username]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
     return $row ?: null;
 }
 
-function log_admin_action(int $admin_id, string $action, ?string $details = null) : void {
+function log_admin_action(int $admin_id, string $action, ?string $details = null): void
+{
     global $pdo;
     $stmt = $pdo->prepare('INSERT INTO admin_activity_logs (admin_id, action, details, ip_address, user_agent) VALUES (?, ?, ?, ?, ?)');
     $stmt->execute([
@@ -88,7 +97,8 @@ function log_admin_action(int $admin_id, string $action, ?string $details = null
     ]);
 }
 
-function is_password_reused(int $admin_id, string $new_password, int $check_last = 3) : bool {
+function is_password_reused(int $admin_id, string $new_password, int $check_last = 3): bool
+{
     global $pdo;
     $stmt = $pdo->prepare('SELECT old_password_hash FROM password_history WHERE admin_id = ? ORDER BY created_at DESC LIMIT ?');
     $stmt->execute([$admin_id, $check_last]);
@@ -101,15 +111,17 @@ function is_password_reused(int $admin_id, string $new_password, int $check_last
     return false;
 }
 
-function store_password_history(int $admin_id, string $old_hash) : void {
+function store_password_history(int $admin_id, string $old_hash): void
+{
     global $pdo;
     $stmt = $pdo->prepare('INSERT INTO password_history (admin_id, old_password_hash) VALUES (?, ?)');
     $stmt->execute([$admin_id, $old_hash]);
 }
 
-function update_admin_profile(array $fields, int $admin_id) : void {
+function update_admin_profile(array $fields, int $admin_id): void
+{
     global $pdo;
-    $allowed = ['name','username','email','phone','language','dark_mode','email_notifications','login_alerts','two_factor_enabled'];
+    $allowed = ['name', 'username', 'email', 'phone', 'language', 'dark_mode', 'email_notifications', 'login_alerts', 'two_factor_enabled'];
     $set = [];
     $vals = [];
     foreach ($fields as $k => $v) {
@@ -125,14 +137,16 @@ function update_admin_profile(array $fields, int $admin_id) : void {
     $stmt->execute($vals);
 }
 
-function ensure_upload_dirs() : void {
+function ensure_upload_dirs(): void
+{
     $dir = __DIR__ . '/uploads/admins';
     if (!is_dir($dir)) {
         @mkdir($dir, 0775, true);
     }
 }
 
-function resize_and_save_image(string $srcPath, string $mime, string $destPath, int $maxW = 512, int $maxH = 512, int $quality = 85) : bool {
+function resize_and_save_image(string $srcPath, string $mime, string $destPath, int $maxW = 512, int $maxH = 512, int $quality = 85): bool
+{
     // Using GD
     switch ($mime) {
         case 'image/jpeg':
@@ -147,9 +161,11 @@ function resize_and_save_image(string $srcPath, string $mime, string $destPath, 
     }
     if (!$img) return false;
 
-    $w = imagesx($img); $h = imagesy($img);
+    $w = imagesx($img);
+    $h = imagesy($img);
     $scale = min($maxW / $w, $maxH / $h, 1.0);
-    $nw = (int)floor($w * $scale); $nh = (int)floor($h * $scale);
+    $nw = (int)floor($w * $scale);
+    $nh = (int)floor($h * $scale);
     $out = imagecreatetruecolor($nw, $nh);
 
     // Preserve transparency for PNG
@@ -158,7 +174,7 @@ function resize_and_save_image(string $srcPath, string $mime, string $destPath, 
         imagesavealpha($out, true);
     }
 
-    imagecopyresampled($out, $img, 0,0,0,0, $nw,$nh, $w,$h);
+    imagecopyresampled($out, $img, 0, 0, 0, 0, $nw, $nh, $w, $h);
 
     $ok = false;
     if ($mime === 'image/png') {
@@ -167,8 +183,7 @@ function resize_and_save_image(string $srcPath, string $mime, string $destPath, 
     } else {
         $ok = imagejpeg($out, $destPath, $quality);
     }
-    imagedestroy($img); imagedestroy($out);
+    imagedestroy($img);
+    imagedestroy($out);
     return $ok;
 }
-
-?>

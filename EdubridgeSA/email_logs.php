@@ -33,7 +33,7 @@ $pdo->exec("CREATE TABLE IF NOT EXISTS email_logs (
 
 // Get email logs
 try {
-    $stmt = $pdo->query("SELECT * FROM email_logs ORDER BY sent_at DESC LIMIT 100");
+    $stmt = $pdo->query("SELECT id, recipient, subject, status, sent_at, error_message FROM email_logs ORDER BY sent_at DESC LIMIT 100");
     $emailLogs = $stmt->fetchAll();
 } catch (PDOException $e) {
     $emailLogs = [];

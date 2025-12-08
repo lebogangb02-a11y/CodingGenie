@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Student Login Page for EduBridge SA - Simplified & Fixed
  * Handles authentication with email + reference number
@@ -8,6 +9,8 @@
 require_once 'session_config.php';
 require_once 'config.php';
 require_once 'security-utils.php';
+// CSRF and escaping helpers
+require_once __DIR__ . '/includes/security_helpers.php';
 
 // SIMPLIFIED SESSION CHECK - Only redirect if truly logged in
 if (isset($_SESSION['student_logged_in']) && $_SESSION['student_logged_in'] === true) {
@@ -35,8 +38,15 @@ $email = '';
 $reference_number = '';
 $success = '';
 
+// Ensure CSRF token available for login form
+if (!isset($_SESSION[CSRF_TOKEN_NAME])) {
+    $_SESSION[CSRF_TOKEN_NAME] = bin2hex(random_bytes(32));
+}
+
 // Handle POST login attempt
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Enforce CSRF for login submissions
+    require_csrf();
     $email = trim($_POST['email'] ?? '');
     $email = $email ? strtolower($email) : '';
     $raw_login_method = $_POST['login_method'] ?? '';
@@ -72,17 +82,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Check rate limiting
             $client_ip = SecurityUtils::getClientIP();
             SecurityUtils::checkRateLimit($pdo, $client_ip, 'login_attempt', 5, 900);
-            
+
             // Validate email
             $validated_email = SecurityUtils::validateEmail($email);
             if (!$validated_email) {
                 throw new Exception('Please enter a valid email address.');
             }
             $email = strtolower($validated_email);
-            
+
             $authenticated = false;
             $user_data = null;
-            
+
             if ($login_method === 'reference') {
                 // FIXED: Use consistent email comparison
                 $stmt = $pdo->prepare("
@@ -92,13 +102,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ");
                 $stmt->execute([$email, $reference_number]);
                 $application = $stmt->fetch(PDO::FETCH_ASSOC);
-                
+
                 if ($application) {
                     error_log("Reference login SUCCESS - App ID: " . $application['id']);
                     $authenticated = true;
                     $user_data = $application;
                     $user_data['auth_method'] = 'reference';
-                    
+
                     // Ensure user_id is set for reference logins
                     if (empty($user_data['user_id']) && !empty($user_data['id'])) {
                         $user_data['user_id'] = $user_data['id'];
@@ -109,7 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $stmt = $pdo->prepare("SELECT reference_number FROM applications WHERE LOWER(email_address) = LOWER(?) LIMIT 1");
                     $stmt->execute([$email]);
                     $existing_app = $stmt->fetch(PDO::FETCH_ASSOC);
-                    
+
                     if ($existing_app) {
                         $error = 'Invalid reference number. Your reference should be: ' . htmlspecialchars($existing_app['reference_number']);
                     } else {
@@ -147,7 +157,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $stmt->execute([$user['id']]);
                 }
             }
-            
+
             if ($authenticated && $user_data) {
                 // SIMPLIFIED SESSION SETUP - Consistent for both methods
                 $_SESSION['student_logged_in'] = true;
@@ -155,7 +165,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['user_type'] = 'student';
                 $_SESSION['last_activity'] = time();
                 $_SESSION['auth_method'] = $user_data['auth_method'];
-                
+
                 // Set consistent identifiers
                 if ($user_data['auth_method'] === 'reference') {
                     $_SESSION['student_id'] = $user_data['id']; // application id
@@ -172,7 +182,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $_SESSION['reference_number'] = $user_data['reference_number'];
                     }
                 }
-                
+
                 // Log successful login
                 SecurityUtils::logSecurityEvent(
                     $pdo,
@@ -186,13 +196,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 // Ensure session is saved
                 session_write_close();
-                
+
                 // Redirect
                 $redirect = $_POST['redirect'] ?? ($_GET['redirect'] ?? 'student-dashboard.php');
                 if ($redirect === 'student-login.php') {
                     $redirect = 'student-dashboard.php';
                 }
-                
+
                 header('Location: ' . $redirect);
                 exit();
             } else {
@@ -220,6 +230,7 @@ if (isset($_SESSION['flash_message'])) {
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -417,7 +428,7 @@ if (isset($_SESSION['flash_message'])) {
             color: var(--royal-blue);
         }
 
-        .login-method-toggle input[type="radio"]:checked + .toggle-option {
+        .login-method-toggle input[type="radio"]:checked+.toggle-option {
             background: var(--royal-blue);
             color: white;
             box-shadow: 0 2px 4px rgba(30, 58, 138, 0.2);
@@ -472,20 +483,22 @@ if (isset($_SESSION['flash_message'])) {
             .login-container {
                 margin: 0.5rem;
             }
-            
-            .login-header, .login-form {
+
+            .login-header,
+            .login-form {
                 padding: 1.5rem;
             }
         }
     </style>
 </head>
+
 <body>
     <div class="login-container">
         <div class="login-header">
             <h1><img src="images/logo.png.jpg" alt="EduBridge SA" class="logo-img" onerror="this.style.display='none'"> EduBridge SA</h1>
             <p>Student Portal Login</p>
         </div>
-        
+
         <div class="login-form">
             <?php if (!empty($success)): ?>
                 <div class="message success">
@@ -502,15 +515,16 @@ if (isset($_SESSION['flash_message'])) {
             <?php endif; ?>
 
             <form method="POST" action="student-login.php">
+                <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo htmlspecialchars($_SESSION[CSRF_TOKEN_NAME] ?? ''); ?>">
                 <input type="hidden" name="redirect" value="<?php echo htmlspecialchars($_GET['redirect'] ?? ''); ?>">
-                
+
                 <div class="form-group">
                     <label for="email" class="form-label">Email Address</label>
-                    <input type="email" id="email" name="email" class="form-input" 
-                           value="<?php echo htmlspecialchars($email); ?>" 
-                           placeholder="Enter your email address" 
-                           autocomplete="email"
-                           required>
+                    <input type="email" id="email" name="email" class="form-input"
+                        value="<?php echo htmlspecialchars($email); ?>"
+                        placeholder="Enter your email address"
+                        autocomplete="email"
+                        required>
                 </div>
 
                 <div class="form-group">
@@ -521,7 +535,7 @@ if (isset($_SESSION['flash_message'])) {
                             <i class="fas fa-file-alt"></i>
                             Application Reference
                         </label>
-                        
+
                         <input type="radio" id="method_password" name="login_method" value="password">
                         <label for="method_password" class="toggle-option">
                             <i class="fas fa-key"></i>
@@ -532,20 +546,20 @@ if (isset($_SESSION['flash_message'])) {
 
                 <div class="form-group" id="reference_field">
                     <label for="reference_number" class="form-label">Application Reference Number</label>
-                    <input type="text" id="reference_number" name="reference_number" class="form-input" 
-                           value="<?php echo htmlspecialchars($reference_number); ?>" 
-                           placeholder="Enter your application reference number (e.g., APP2025097459)"
-                           autocomplete="off"
-                           pattern="APP[0-9]{10}"
-                           title="Reference format: APP##########">
+                    <input type="text" id="reference_number" name="reference_number" class="form-input"
+                        value="<?php echo htmlspecialchars($reference_number); ?>"
+                        placeholder="Enter your application reference number (e.g., APP2025097459)"
+                        autocomplete="off"
+                        pattern="APP[0-9]{10}"
+                        title="Reference format: APP##########">
                 </div>
 
                 <div class="form-group" id="password_field" style="display: none;">
                     <label for="password" class="form-label">Password</label>
                     <div class="password-input-container">
-                        <input type="password" id="password" name="password" class="form-input" 
-                               placeholder="Enter your password"
-                               autocomplete="current-password">
+                        <input type="password" id="password" name="password" class="form-input"
+                            placeholder="Enter your password"
+                            autocomplete="current-password">
                         <button type="button" class="password-toggle" onclick="togglePassword()">
                             <i class="fas fa-eye" id="password-toggle-icon"></i>
                         </button>
@@ -607,7 +621,7 @@ if (isset($_SESSION['flash_message'])) {
         function togglePassword() {
             const passwordInput = document.getElementById('password');
             const toggleIcon = document.getElementById('password-toggle-icon');
-            
+
             if (passwordInput.type === 'password') {
                 passwordInput.type = 'text';
                 toggleIcon.classList.remove('fa-eye');
@@ -623,20 +637,21 @@ if (isset($_SESSION['flash_message'])) {
             const emailField = document.getElementById('email');
             const referenceMethod = document.getElementById('method_reference');
             const passwordMethod = document.getElementById('method_password');
-            
+
             if (emailField.value === '1' || emailField.value === '0') {
                 emailField.value = '';
             }
-            
+
             if (!emailField.value) {
                 emailField.focus();
             }
-            
+
             referenceMethod.addEventListener('change', toggleLoginMethod);
             passwordMethod.addEventListener('change', toggleLoginMethod);
-            
+
             toggleLoginMethod();
         });
     </script>
 </body>
+
 </html>

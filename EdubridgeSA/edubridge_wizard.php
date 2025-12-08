@@ -92,7 +92,7 @@ function ensure_app(PDO $pdo)
 function get_app(PDO $pdo)
 {
     if (!isset($_SESSION['application_id'])) return null;
-    $stmt = $pdo->prepare('SELECT * FROM applications WHERE id = ?');
+    $stmt = $pdo->prepare('SELECT id, reference_number, email_address, application_status, step_completed, created_at, updated_at FROM applications WHERE id = ?');
     $stmt->execute([$_SESSION['application_id']]);
     return $stmt->fetch();
 }
@@ -228,7 +228,9 @@ $success = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         // Server-side CSRF enforcement (best-effort)
-        if (function_exists('require_csrf')) { require_csrf(); }
+        if (function_exists('require_csrf')) {
+            require_csrf();
+        }
 
         // Validate CSRF for every submission
         check_csrf();
@@ -413,7 +415,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->execute([$signature, $terms, $privacy, $_SESSION['application_id']]);
             update_session_progress($pdo);
             // Fetch fresh application data for email
-            $stmt2 = $pdo->prepare('SELECT * FROM applications WHERE id = ?');
+            $stmt2 = $pdo->prepare('SELECT id, reference_number, email_address, application_status, created_at, updated_at FROM applications WHERE id = ?');
             $stmt2->execute([$_SESSION['application_id']]);
             $appForEmail = $stmt2->fetch(PDO::FETCH_ASSOC);
 

@@ -30,12 +30,14 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' && !empty($student_email)) {
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Enforce CSRF if security helpers are available
-    if (function_exists('require_csrf')) { require_csrf(); }
+    if (function_exists('require_csrf')) {
+        require_csrf();
+    }
 
     require_once 'config.php';
-    
+
     $email = trim($_POST['email'] ?? '');
-    
+
     if (empty($email)) {
         $message = 'Please enter your email address.';
         $messageType = 'error';
@@ -45,7 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $pdo->prepare("SELECT id, reference_number, full_name, surname, created_at, status FROM applications WHERE email_address = ? ORDER BY created_at DESC");
             $stmt->execute([$email]);
             $applications = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
+
             if (empty($applications)) {
                 $message = 'No applications found for this email address.';
                 $messageType = 'error';
@@ -73,6 +75,7 @@ if (isset($_GET['set_ref']) && !empty($_GET['set_ref'])) {
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -137,6 +140,7 @@ if (isset($_GET['set_ref']) && !empty($_GET['set_ref'])) {
             font-weight: 700;
             font-size: 1.5rem;
         }
+
         .logo img {
             height: 32px;
             width: auto;
@@ -317,6 +321,7 @@ if (isset($_GET['set_ref']) && !empty($_GET['set_ref'])) {
         }
     </style>
 </head>
+
 <body>
     <div class="nav-container">
         <nav>
@@ -353,9 +358,9 @@ if (isset($_GET['set_ref']) && !empty($_GET['set_ref'])) {
             <form method="POST" action="find-application.php">
                 <div class="form-group">
                     <label for="email" class="form-label">Email Address</label>
-                    <input type="email" id="email" name="email" class="form-input" 
-                           value="<?php echo htmlspecialchars($student_email); ?>" 
-                           placeholder="Enter the email used for your application" required>
+                    <input type="email" id="email" name="email" class="form-input"
+                        value="<?php echo htmlspecialchars($student_email); ?>"
+                        placeholder="Enter the email used for your application" required>
                 </div>
 
                 <button type="submit" class="btn">
@@ -367,7 +372,7 @@ if (isset($_GET['set_ref']) && !empty($_GET['set_ref'])) {
             <?php if (!empty($applications)): ?>
                 <div class="applications-list">
                     <h3 style="margin-bottom: 1rem; color: var(--gray-800);">Your Applications</h3>
-                    
+
                     <?php foreach ($applications as $app): ?>
                         <div class="application-item">
                             <div class="application-info">
@@ -400,4 +405,5 @@ if (isset($_GET['set_ref']) && !empty($_GET['set_ref'])) {
         </div>
     </div>
 </body>
+
 </html>

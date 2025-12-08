@@ -82,7 +82,6 @@ if (isset($pdo) && $pdo instanceof PDO) {
             INDEX idx_assigned (assigned_to),
             INDEX idx_created (created_at)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-
     } catch (Throwable $e) {
         // Silently continue - tables might already exist
     }
@@ -91,7 +90,9 @@ if (isset($pdo) && $pdo instanceof PDO) {
 // Handle actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Enforce CSRF server-side when helper available
-    if (function_exists('require_csrf')) { require_csrf(); }
+    if (function_exists('require_csrf')) {
+        require_csrf();
+    }
     if (isset($_POST['mark_read']) && isset($_POST['message_id'])) {
         $messageId = (int)$_POST['message_id'];
         try {
@@ -101,7 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Silently fail
         }
     }
-    
+
     if (isset($_POST['archive_message']) && isset($_POST['message_id'])) {
         $messageId = (int)$_POST['message_id'];
         try {
@@ -111,12 +112,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Silently fail
         }
     }
-    
+
     if (isset($_POST['update_enquiry_status']) && isset($_POST['enquiry_id'])) {
         $enquiryId = (int)$_POST['enquiry_id'];
         $status = $_POST['status'] ?? 'new';
         $assignedTo = $_POST['assigned_to'] ?? null;
-        
+
         try {
             $stmt = $pdo->prepare('UPDATE contact_enquiries SET status = ?, assigned_to = ?, updated_at = NOW() WHERE id = ?');
             $stmt->execute([$status, $assignedTo, $enquiryId]);
@@ -162,7 +163,6 @@ if (isset($pdo) && $pdo instanceof PDO) {
         ');
         $notifStmt->execute([$_SESSION['admin_role'] ?? 'staff']);
         $notifications = $notifStmt->fetchAll(PDO::FETCH_ASSOC);
-
     } catch (Throwable $e) {
         // Silently fail - non-critical features
     }
@@ -175,56 +175,72 @@ $type = $_GET['type'] ?? 'all';
 admin_header('Messages & Notifications');
 ?>
 <style>
-.message-card {
-    border-left: 4px solid #007bff;
-    transition: all 0.3s ease;
-}
-.message-card:hover {
-    transform: translateX(5px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-}
-.message-unread {
-    border-left-color: #dc3545;
-    background-color: #f8f9fa;
-}
-.message-application {
-    border-left-color: #28a745;
-}
-.message-enquiry {
-    border-left-color: #ffc107;
-}
-.message-system {
-    border-left-color: #6c757d;
-}
-.message-alert {
-    border-left-color: #dc3545;
-}
-.priority-high { border-left-width: 6px; }
-.priority-urgent { 
-    border-left-width: 8px; 
-    background: linear-gradient(90deg, rgba(220,53,69,0.1) 0%, rgba(255,255,255,1) 100%);
-}
-.notification-badge {
-    position: absolute;
-    top: -5px;
-    right: -5px;
-}
-.message-actions {
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-.message-card:hover .message-actions {
-    opacity: 1;
-}
-.enquiry-new {
-    background-color: #e3f2fd;
-}
-.enquiry-in_progress {
-    background-color: #fff3cd;
-}
-.enquiry-resolved {
-    background-color: #d4edda;
-}
+    .message-card {
+        border-left: 4px solid #007bff;
+        transition: all 0.3s ease;
+    }
+
+    .message-card:hover {
+        transform: translateX(5px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .message-unread {
+        border-left-color: #dc3545;
+        background-color: #f8f9fa;
+    }
+
+    .message-application {
+        border-left-color: #28a745;
+    }
+
+    .message-enquiry {
+        border-left-color: #ffc107;
+    }
+
+    .message-system {
+        border-left-color: #6c757d;
+    }
+
+    .message-alert {
+        border-left-color: #dc3545;
+    }
+
+    .priority-high {
+        border-left-width: 6px;
+    }
+
+    .priority-urgent {
+        border-left-width: 8px;
+        background: linear-gradient(90deg, rgba(220, 53, 69, 0.1) 0%, rgba(255, 255, 255, 1) 100%);
+    }
+
+    .notification-badge {
+        position: absolute;
+        top: -5px;
+        right: -5px;
+    }
+
+    .message-actions {
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    .message-card:hover .message-actions {
+        opacity: 1;
+    }
+
+    .enquiry-new {
+        background-color: #e3f2fd;
+    }
+
+    .enquiry-in_progress {
+        background-color: #fff3cd;
+    }
+
+    .enquiry-resolved {
+        background-color: #d4edda;
+    }
 </style>
 
 <div class="container-fluid">
@@ -262,7 +278,7 @@ admin_header('Messages & Notifications');
                         </div>
                     </div>
                 <?php else: ?>
-                    <?php foreach ($messages as $message): 
+                    <?php foreach ($messages as $message):
                         $isUnread = !$message['is_read'];
                         $priorityClass = $message['priority'] === 'high' ? 'priority-high' : ($message['priority'] === 'urgent' ? 'priority-urgent' : '');
                         $typeClass = 'message-' . $message['message_type'];
@@ -285,9 +301,9 @@ admin_header('Messages & Notifications');
                                                 </span>
                                             <?php endif; ?>
                                         </div>
-                                        
+
                                         <p class="card-text mb-2"><?= nl2br(htmlspecialchars($message['message'])) ?></p>
-                                        
+
                                         <div class="small text-muted">
                                             <?php if ($message['sender_name']): ?>
                                                 From: <strong><?= htmlspecialchars($message['sender_name']) ?></strong> •
@@ -301,7 +317,7 @@ admin_header('Messages & Notifications');
                                             <?= time_ago($message['created_at']) ?>
                                         </div>
                                     </div>
-                                    
+
                                     <div class="message-actions ms-3">
                                         <?php if ($isUnread): ?>
                                             <form method="post" class="d-inline">
@@ -311,13 +327,13 @@ admin_header('Messages & Notifications');
                                                 </button>
                                             </form>
                                         <?php endif; ?>
-                                        
+
                                         <?php if ($message['action_url']): ?>
                                             <a href="<?= htmlspecialchars($message['action_url']) ?>" class="btn btn-sm btn-primary" title="Take action">
                                                 <i class="bi bi-arrow-right"></i>
                                             </a>
                                         <?php endif; ?>
-                                        
+
                                         <form method="post" class="d-inline">
                                             <input type="hidden" name="message_id" value="<?= $message['id'] ?>">
                                             <button type="submit" name="archive_message" class="btn btn-sm btn-outline-secondary" title="Archive">
@@ -411,7 +427,7 @@ admin_header('Messages & Notifications');
                         $enquiries = [];
                     }
                     ?>
-                    
+
                     <?php if (empty($enquiries)): ?>
                         <div class="text-center text-muted py-3">
                             <i class="bi bi-envelope-open display-4"></i>
@@ -447,55 +463,55 @@ admin_header('Messages & Notifications');
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-// Auto-refresh messages every 30 seconds
-setInterval(function() {
-    fetch(window.location.href)
-        .then(response => response.text())
-        .then(html => {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-            const newCount = doc.querySelector('.badge.bg-danger')?.textContent || '0';
-            const currentCount = document.querySelector('.badge.bg-danger')?.textContent || '0';
-            
-            if (newCount !== currentCount) {
-                location.reload();
-            }
-        })
-        .catch(error => console.log('Auto-refresh failed:', error));
-}, 30000);
+    // Auto-refresh messages every 30 seconds
+    setInterval(function() {
+        fetch(window.location.href)
+            .then(response => response.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const newCount = doc.querySelector('.badge.bg-danger')?.textContent || '0';
+                const currentCount = document.querySelector('.badge.bg-danger')?.textContent || '0';
 
-// Mark message as read on click
-document.addEventListener('click', function(e) {
-    if (e.target.closest('.message-card')) {
-        const messageCard = e.target.closest('.message-card');
-        const messageId = messageCard.querySelector('input[name="message_id"]')?.value;
-        const isUnread = messageCard.classList.contains('message-unread');
-        
-        if (isUnread && messageId) {
-            const formData = new FormData();
-            formData.append('message_id', messageId);
-            formData.append('mark_read', '1');
-            
-            fetch('admin_messages.php', {
-                method: 'POST',
-                body: formData
-            }).then(() => {
-                messageCard.classList.remove('message-unread');
-                const badge = messageCard.querySelector('.notification-badge');
-                if (badge) badge.remove();
-                
-                // Update unread count
-                const unreadBadge = document.querySelector('.badge.bg-danger');
-                if (unreadBadge) {
-                    const newCount = parseInt(unreadBadge.textContent) - 1;
-                    if (newCount > 0) {
-                        unreadBadge.textContent = newCount;
-                    } else {
-                        unreadBadge.remove();
-                    }
+                if (newCount !== currentCount) {
+                    location.reload();
                 }
-            });
+            })
+            .catch(error => console.log('Auto-refresh failed:', error));
+    }, 30000);
+
+    // Mark message as read on click
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.message-card')) {
+            const messageCard = e.target.closest('.message-card');
+            const messageId = messageCard.querySelector('input[name="message_id"]')?.value;
+            const isUnread = messageCard.classList.contains('message-unread');
+
+            if (isUnread && messageId) {
+                const formData = new FormData();
+                formData.append('message_id', messageId);
+                formData.append('mark_read', '1');
+
+                fetch('admin_messages.php', {
+                    method: 'POST',
+                    body: formData
+                }).then(() => {
+                    messageCard.classList.remove('message-unread');
+                    const badge = messageCard.querySelector('.notification-badge');
+                    if (badge) badge.remove();
+
+                    // Update unread count
+                    const unreadBadge = document.querySelector('.badge.bg-danger');
+                    if (unreadBadge) {
+                        const newCount = parseInt(unreadBadge.textContent) - 1;
+                        if (newCount > 0) {
+                            unreadBadge.textContent = newCount;
+                        } else {
+                            unreadBadge.remove();
+                        }
+                    }
+                });
+            }
         }
-    }
-});
+    });
 </script>

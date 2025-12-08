@@ -9,8 +9,12 @@ defined('SMTP_PASS') or define('SMTP_PASS', getenv('SMTP_PASS') ?: '');
 defined('SMTP_SECURE') or define('SMTP_SECURE', getenv('SMTP_SECURE') ?: 'tls');
 
 // Backward-compatibility with older config constants
-if (defined('SMTP_USERNAME') && !defined('SMTP_USER')) { define('SMTP_USER', SMTP_USERNAME); }
-if (defined('SMTP_PASSWORD') && !defined('SMTP_PASS')) { define('SMTP_PASS', SMTP_PASSWORD); }
+if (defined('SMTP_USERNAME') && !defined('SMTP_USER')) {
+    define('SMTP_USER', SMTP_USERNAME);
+}
+if (defined('SMTP_PASSWORD') && !defined('SMTP_PASS')) {
+    define('SMTP_PASS', SMTP_PASSWORD);
+}
 
 // Optional: allow local overrides
 if (file_exists(__DIR__ . '/../config_local.php')) {
@@ -25,7 +29,8 @@ require_once __DIR__ . '/../PHPMailer/src/PHPMailer.php';
 require_once __DIR__ . '/../PHPMailer/src/SMTP.php';
 require_once __DIR__ . '/../PHPMailer/src/Exception.php';
 
-function getMailer() {
+function getMailer()
+{
     try {
         $mail = new PHPMailer\PHPMailer\PHPMailer(true);
         $mail->isSMTP();
@@ -43,7 +48,8 @@ function getMailer() {
     }
 }
 
-function getPDO() {
+function getPDO()
+{
     try {
         if (defined('DB_HOST')) {
             $pdo = new PDO('mysql:host=' . DB_HOST . ';dbname=' . DB_NAME, DB_USER, DB_PASS);
@@ -56,7 +62,8 @@ function getPDO() {
     return null;
 }
 
-function ensureEmailLogsTable($pdo) {
+function ensureEmailLogsTable($pdo)
+{
     if (!$pdo) return;
     try {
         $pdo->exec("CREATE TABLE IF NOT EXISTS email_logs (
@@ -87,7 +94,8 @@ function ensureEmailLogsTable($pdo) {
     }
 }
 
-function logEmailAttempt($type, $recipient, $status, $errorMessage = null, $payload = null) {
+function logEmailAttempt($type, $recipient, $status, $errorMessage = null, $payload = null)
+{
     $pdo = getPDO();
     if (!$pdo) return;
     ensureEmailLogsTable($pdo);
@@ -100,7 +108,8 @@ function logEmailAttempt($type, $recipient, $status, $errorMessage = null, $payl
     }
 }
 
-function generatePaymentEmailTemplate($applicantName, $amount, $paymentRef) {
+function generatePaymentEmailTemplate($applicantName, $amount, $paymentRef)
+{
     $safeName = htmlspecialchars($applicantName ?: 'Applicant');
     $safeAmount = htmlspecialchars($amount);
     $safeRef = htmlspecialchars($paymentRef);
@@ -125,7 +134,8 @@ function generatePaymentEmailTemplate($applicantName, $amount, $paymentRef) {
     </div>";
 }
 
-function sendPaymentConfirmationBasic($email, $paymentRef, $amount) {
+function sendPaymentConfirmationBasic($email, $paymentRef, $amount)
+{
     $subject = 'Payment Confirmed - EduBridge Application';
     $body = generatePaymentEmailTemplate('Applicant', $amount, $paymentRef);
     $headers = "Content-type: text/html\r\n";
@@ -140,7 +150,8 @@ function sendPaymentConfirmationBasic($email, $paymentRef, $amount) {
     return $ok;
 }
 
-function sendPaymentConfirmation($email, $paymentRef, $amount, $applicantName) {
+function sendPaymentConfirmation($email, $paymentRef, $amount, $applicantName)
+{
     $mail = getMailer();
     if ($mail) {
         try {
@@ -180,7 +191,8 @@ function sendPaymentConfirmation($email, $paymentRef, $amount, $applicantName) {
 }
 
 // Status update template and sender
-function generateStatusEmailTemplate($applicantName, $newStatus, $applicationRef) {
+function generateStatusEmailTemplate($applicantName, $newStatus, $applicationRef)
+{
     $safeName = htmlspecialchars($applicantName ?: 'Applicant');
     $safeStatus = htmlspecialchars($newStatus ?: 'Updated');
     $safeRef = htmlspecialchars($applicationRef ?: 'N/A');
@@ -194,7 +206,8 @@ function generateStatusEmailTemplate($applicantName, $newStatus, $applicationRef
     </div>";
 }
 
-function sendStatusUpdateEmail($email, $applicantName, $newStatus, $applicationRef) {
+function sendStatusUpdateEmail($email, $applicantName, $newStatus, $applicationRef)
+{
     $type = 'status_update';
     $mail = getMailer();
     if ($mail) {
@@ -203,15 +216,15 @@ function sendStatusUpdateEmail($email, $applicantName, $newStatus, $applicationR
             $mail->isHTML(true);
             $mail->Subject = "Application Status Update - {$newStatus}";
             $mail->Body = generateStatusEmailTemplate($applicantName, $newStatus, $applicationRef);
-            if ($mail->send()) { 
+            if ($mail->send()) {
                 logEmailAttempt($type, $email, 'sent', null, [
                     'email' => $email,
                     'applicantName' => $applicantName,
                     'newStatus' => $newStatus,
                     'applicationRef' => $applicationRef,
                     'template' => 'status_update'
-                ]); 
-                return true; 
+                ]);
+                return true;
             }
             logEmailAttempt($type, $email, 'failed', $mail->ErrorInfo, [
                 'email' => $email,
@@ -243,7 +256,8 @@ function sendStatusUpdateEmail($email, $applicantName, $newStatus, $applicationR
 }
 
 // Verification template and sender
-function generateVerificationEmailTemplate($applicantName, $verificationCode) {
+function generateVerificationEmailTemplate($applicantName, $verificationCode)
+{
     $safeName = htmlspecialchars($applicantName ?: 'Applicant');
     $safeCode = htmlspecialchars($verificationCode ?: '');
     $base = defined('BASE_URL') ? BASE_URL : 'https://edubridgesa.co.za';
@@ -257,7 +271,8 @@ function generateVerificationEmailTemplate($applicantName, $verificationCode) {
     </div>";
 }
 
-function sendVerificationEmail($email, $applicantName, $verificationCode) {
+function sendVerificationEmail($email, $applicantName, $verificationCode)
+{
     $type = 'verification';
     $mail = getMailer();
     if ($mail) {
@@ -266,14 +281,14 @@ function sendVerificationEmail($email, $applicantName, $verificationCode) {
             $mail->isHTML(true);
             $mail->Subject = 'Verify Your Email - EduBridge SA';
             $mail->Body = generateVerificationEmailTemplate($applicantName, $verificationCode);
-            if ($mail->send()) { 
+            if ($mail->send()) {
                 logEmailAttempt($type, $email, 'sent', null, [
                     'email' => $email,
                     'applicantName' => $applicantName,
                     'verificationCode' => $verificationCode,
                     'template' => 'verification'
-                ]); 
-                return true; 
+                ]);
+                return true;
             }
             logEmailAttempt($type, $email, 'failed', $mail->ErrorInfo, [
                 'email' => $email,
@@ -302,11 +317,12 @@ function sendVerificationEmail($email, $applicantName, $verificationCode) {
 }
 
 // True retry using stored payload
-function retryFailedEmail($logId) {
+function retryFailedEmail($logId)
+{
     $db = getPDO();
     if (!$db) return false;
     ensureEmailLogsTable($db);
-    $stmt = $db->prepare("SELECT * FROM email_logs WHERE id = ? AND status = 'failed'");
+    $stmt = $db->prepare("SELECT id, recipient, subject, status, payload_json, retry_count, created_at FROM email_logs WHERE id = ? AND status = 'failed'");
     $stmt->execute([$logId]);
     $failed = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$failed) return false;
@@ -349,7 +365,8 @@ function retryFailedEmail($logId) {
 }
 
 // Slack/Webhook alert notifications
-function sendAlertNotification($message, $level = 'warning') {
+function sendAlertNotification($message, $level = 'warning')
+{
     $slackWebhook = getenv('SLACK_WEBHOOK_URL');
     if ($slackWebhook) {
         $data = [
@@ -382,9 +399,13 @@ function sendAlertNotification($message, $level = 'warning') {
 }
 
 // Enhanced health check with alerts
-function checkEmailHealth() {
+function checkEmailHealth()
+{
     $db = getPDO();
-    if (!$db) { sendAlertNotification('Database not available for email health check', 'critical'); return 0; }
+    if (!$db) {
+        sendAlertNotification('Database not available for email health check', 'critical');
+        return 0;
+    }
     ensureEmailLogsTable($db);
     $today = date('Y-m-d');
     try {
@@ -399,5 +420,3 @@ function checkEmailHealth() {
         return 0;
     }
 }
-
-?>

@@ -1,5 +1,7 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) { session_start(); }
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 header('X-Robots-Tag: noindex, nofollow', true);
 /**
  * Application Edit System
@@ -9,6 +11,8 @@ header('X-Robots-Tag: noindex, nofollow', true);
 require_once 'session_config.php';
 require_once 'config.php';
 require_once 'security-utils.php';
+// CSRF and escaping helpers
+require_once __DIR__ . '/includes/security_helpers.php';
 
 // Check if user is logged in
 if (!isset($_SESSION['student_logged_in']) || $_SESSION['student_logged_in'] !== true) {
@@ -31,29 +35,28 @@ if (!in_array($application_status, ['draft', 'documents_pending', 'submitted', '
 try {
     $pdo = new PDO("mysql:host=" . DB_HOST . ";dbname=" . DB_NAME, DB_USER, DB_PASS);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    
+
     // Get current application data
     $stmt = $pdo->prepare("\n        SELECT a.*, pg.* \n        FROM applications a \n        LEFT JOIN parent_guardian_details pg ON a.id = pg.application_id \n        WHERE a.student_id = ?\n    ");
     $stmt->execute([$student_id]);
     $application = $stmt->fetch(PDO::FETCH_ASSOC);
     $application_id = $application['id'] ?? null;
-    
+
     if (!$application) {
         $_SESSION['form_message'] = 'Application not found.';
         $_SESSION['form_message_type'] = 'error';
         header('Location: student-dashboard.php');
         exit();
     }
-    
+
     // Get university choices
     $stmt = $pdo->prepare("\n        SELECT uc.*, u.name as university_name \n        FROM university_choices uc \n        LEFT JOIN universities u ON uc.university_id = u.id \n        WHERE uc.application_id = ? \n        ORDER BY uc.choice_order\n    ");
     $stmt->execute([$application_id]);
     $university_choices = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
+
     // Get all universities for dropdown
-    $stmt = $pdo->query("SELECT * FROM universities ORDER BY name");
+    $stmt = $pdo->query("SELECT id, name, country FROM universities ORDER BY name LIMIT 500");
     $universities = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
 } catch (PDOException $e) {
     error_log("Database error: " . $e->getMessage());
     $_SESSION['form_message'] = 'Database error occurred.';
@@ -64,23 +67,25 @@ try {
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Enforce CSRF on all form submissions
+    require_csrf();
     try {
         $pdo->beginTransaction();
-        
+
         // Validate user access
         SecurityUtils::validateUserAccess($pdo, $student_id, $_SESSION['student_id']);
-        
+
         // Check if editing is allowed
         if (!SecurityUtils::isActionAllowed('edit', $application_status)) {
             throw new Exception('Editing is not allowed for your current application status.');
         }
-        
+
         // Check rate limiting
         SecurityUtils::checkRateLimit($pdo, $_SESSION['student_id'], 'application_edit', 5, 3600);
-        
+
         // Sanitize and validate input
         $input_data = SecurityUtils::sanitizeInput($_POST);
-        
+
         $full_name = trim($input_data['full_name'] ?? '');
         $surname = trim($input_data['surname'] ?? '');
         $email_address = trim($input_data['email_address'] ?? '');
@@ -95,7 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $city = trim($input_data['city'] ?? '');
         $postal_code = trim($input_data['postal_code'] ?? '');
         $province = $input_data['province'] ?? '';
-        
+
         // Parent/Guardian details
         $parent_full_name = trim($input_data['parent_full_name'] ?? '');
         $parent_surname = trim($input_data['parent_surname'] ?? '');
@@ -104,53 +109,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $parent_email = trim($input_data['parent_email'] ?? '');
         $parent_occupation = trim($input_data['parent_occupation'] ?? '');
         $parent_employer = trim($input_data['parent_employer'] ?? '');
-        
+
         // Enhanced validation
         if (empty($full_name) || empty($surname) || empty($email_address) || empty($cellphone_number)) {
             throw new Exception('Please fill in all required fields.');
         }
-        
+
         // Validate email
         $validated_email = SecurityUtils::validateEmail($email_address);
         if (!$validated_email) {
             throw new Exception('Please enter a valid email address.');
         }
         $email_address = $validated_email;
-        
+
         // Validate phone number
         $validated_phone = SecurityUtils::validatePhone($cellphone_number);
         if (!$validated_phone) {
             throw new Exception('Please enter a valid cellphone number.');
         }
         $cellphone_number = $validated_phone;
-        
+
         // Validate ID number if provided
         if (!empty($id_number) && !SecurityUtils::validateSAIdNumber($id_number)) {
             throw new Exception('Please enter a valid South African ID number.');
         }
-        
+
         // Update applications table
         $stmt = $pdo->prepare("\n            UPDATE applications SET \n                full_name = ?, surname = ?, email_address = ?, cellphone_number = ?, \n                date_of_birth = ?, id_number = ?, gender = ?, home_language = ?, \n                nationality = ?, postal_address = ?, physical_address = ?, \n                city = ?, postal_code = ?, province = ?, updated_at = NOW()\n            WHERE id = ?\n        ");
         $stmt->execute([
-            $full_name, $surname, $email_address, $cellphone_number,
-            $date_of_birth, $id_number, $gender, $home_language,
-            $nationality, $postal_address, $physical_address,
-            $city, $postal_code, $province, $application_id
+            $full_name,
+            $surname,
+            $email_address,
+            $cellphone_number,
+            $date_of_birth,
+            $id_number,
+            $gender,
+            $home_language,
+            $nationality,
+            $postal_address,
+            $physical_address,
+            $city,
+            $postal_code,
+            $province,
+            $application_id
         ]);
-        
+
         // Update parent/guardian details
         $stmt = $pdo->prepare("\n            INSERT INTO parent_guardian_details (\n                application_id, full_name, surname, relationship, cellphone_number,\n                email_address, occupation, employer, created_at, updated_at\n            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())\n            ON DUPLICATE KEY UPDATE\n                full_name = VALUES(full_name),\n                surname = VALUES(surname),\n                relationship = VALUES(relationship),\n                cellphone_number = VALUES(cellphone_number),\n                email_address = VALUES(email_address),\n                occupation = VALUES(occupation),\n                employer = VALUES(employer),\n                updated_at = NOW()\n        ");
         $stmt->execute([
-            $application_id, $parent_full_name, $parent_surname, $parent_relationship,
-            $parent_cellphone, $parent_email, $parent_occupation, $parent_employer
+            $application_id,
+            $parent_full_name,
+            $parent_surname,
+            $parent_relationship,
+            $parent_cellphone,
+            $parent_email,
+            $parent_occupation,
+            $parent_employer
         ]);
-        
+
         // Handle university choices
         if (isset($_POST['university_choices']) && is_array($_POST['university_choices'])) {
             // Delete existing choices
             $stmt = $pdo->prepare("DELETE FROM university_choices WHERE application_id = ?");
             $stmt->execute([$application_id]);
-            
+
             // Insert new choices
             foreach ($_POST['university_choices'] as $index => $choice) {
                 if (!empty($choice['university_id']) && !empty($choice['course'])) {
@@ -159,13 +181,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
         }
-        
+
         // Add to status history
         $stmt = $pdo->prepare("\n            INSERT INTO application_status_history (application_id, previous_status, new_status, notes, created_at)\n            VALUES (?, ?, ?, 'Application details updated', NOW())\n        ");
         $stmt->execute([$application_id, $application_status, $application_status]);
-        
+
         $pdo->commit();
-        
+
         // Log successful edit
         SecurityUtils::logSecurityEvent(
             $pdo,
@@ -174,15 +196,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['student_id'],
             SecurityUtils::getClientIP()
         );
-        
+
         $_SESSION['form_message'] = 'Application updated successfully!';
         $_SESSION['form_message_type'] = 'success';
         header('Location: student-dashboard.php');
         exit();
-        
     } catch (Exception $e) {
         $pdo->rollBack();
-        
+
         // Log failed edit attempt
         SecurityUtils::logSecurityEvent(
             $pdo,
@@ -191,7 +212,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['student_id'] ?? null,
             SecurityUtils::getClientIP()
         );
-        
+
         $error_message = $e->getMessage();
         error_log("Application update error: " . $error_message);
     }
@@ -199,6 +220,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -267,6 +289,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-size: 1.5rem;
             text-decoration: none;
         }
+
         .logo img {
             height: 32px;
             width: auto;
@@ -534,6 +557,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     </style>
 </head>
+
 <body>
     <!-- Navigation -->
     <nav class="navbar">
@@ -576,33 +600,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div class="form-grid">
                         <div class="form-group">
                             <label for="full_name" class="form-label required">First Name</label>
-                            <input type="text" id="full_name" name="full_name" class="form-input" 
-                                   value="<?php echo htmlspecialchars($application['full_name'] ?? ''); ?>" required>
+                            <input type="text" id="full_name" name="full_name" class="form-input"
+                                value="<?php echo htmlspecialchars($application['full_name'] ?? ''); ?>" required>
                         </div>
                         <div class="form-group">
                             <label for="surname" class="form-label required">Surname</label>
-                            <input type="text" id="surname" name="surname" class="form-input" 
-                                   value="<?php echo htmlspecialchars($application['surname'] ?? ''); ?>" required>
+                            <input type="text" id="surname" name="surname" class="form-input"
+                                value="<?php echo htmlspecialchars($application['surname'] ?? ''); ?>" required>
                         </div>
                         <div class="form-group">
                             <label for="email_address" class="form-label required">Email Address</label>
-                            <input type="email" id="email_address" name="email_address" class="form-input" 
-                                   value="<?php echo htmlspecialchars($application['email_address'] ?? ''); ?>" required>
+                            <input type="email" id="email_address" name="email_address" class="form-input"
+                                value="<?php echo htmlspecialchars($application['email_address'] ?? ''); ?>" required>
                         </div>
                         <div class="form-group">
                             <label for="cellphone_number" class="form-label required">Cellphone Number</label>
-                            <input type="tel" id="cellphone_number" name="cellphone_number" class="form-input" 
-                                   value="<?php echo htmlspecialchars($application['cellphone_number'] ?? ''); ?>" required>
+                            <input type="tel" id="cellphone_number" name="cellphone_number" class="form-input"
+                                value="<?php echo htmlspecialchars($application['cellphone_number'] ?? ''); ?>" required>
                         </div>
                         <div class="form-group">
                             <label for="date_of_birth" class="form-label">Date of Birth</label>
-                            <input type="date" id="date_of_birth" name="date_of_birth" class="form-input" 
-                                   value="<?php echo htmlspecialchars($application['date_of_birth'] ?? ''); ?>">
+                            <input type="date" id="date_of_birth" name="date_of_birth" class="form-input"
+                                value="<?php echo htmlspecialchars($application['date_of_birth'] ?? ''); ?>">
                         </div>
                         <div class="form-group">
                             <label for="id_number" class="form-label">ID Number</label>
-                            <input type="text" id="id_number" name="id_number" class="form-input" 
-                                   value="<?php echo htmlspecialchars($application['id_number'] ?? ''); ?>">
+                            <input type="text" id="id_number" name="id_number" class="form-input"
+                                value="<?php echo htmlspecialchars($application['id_number'] ?? ''); ?>">
                         </div>
                         <div class="form-group">
                             <label for="gender" class="form-label">Gender</label>
@@ -615,13 +639,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                         <div class="form-group">
                             <label for="home_language" class="form-label">Home Language</label>
-                            <input type="text" id="home_language" name="home_language" class="form-input" 
-                                   value="<?php echo htmlspecialchars($application['home_language'] ?? ''); ?>">
+                            <input type="text" id="home_language" name="home_language" class="form-input"
+                                value="<?php echo htmlspecialchars($application['home_language'] ?? ''); ?>">
                         </div>
                         <div class="form-group">
                             <label for="nationality" class="form-label">Nationality</label>
-                            <input type="text" id="nationality" name="nationality" class="form-input" 
-                                   value="<?php echo htmlspecialchars($application['nationality'] ?? ''); ?>">
+                            <input type="text" id="nationality" name="nationality" class="form-input"
+                                value="<?php echo htmlspecialchars($application['nationality'] ?? ''); ?>">
                         </div>
                         <div class="form-group">
                             <label for="province" class="form-label">Province</label>
@@ -648,13 +672,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                         <div class="form-group">
                             <label for="city" class="form-label">City</label>
-                            <input type="text" id="city" name="city" class="form-input" 
-                                   value="<?php echo htmlspecialchars($application['city'] ?? ''); ?>">
+                            <input type="text" id="city" name="city" class="form-input"
+                                value="<?php echo htmlspecialchars($application['city'] ?? ''); ?>">
                         </div>
                         <div class="form-group">
                             <label for="postal_code" class="form-label">Postal Code</label>
-                            <input type="text" id="postal_code" name="postal_code" class="form-input" 
-                                   value="<?php echo htmlspecialchars($application['postal_code'] ?? ''); ?>">
+                            <input type="text" id="postal_code" name="postal_code" class="form-input"
+                                value="<?php echo htmlspecialchars($application['postal_code'] ?? ''); ?>">
                         </div>
                     </div>
                 </div>
@@ -667,13 +691,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div class="form-grid">
                         <div class="form-group">
                             <label for="parent_full_name" class="form-label">First Name</label>
-                            <input type="text" id="parent_full_name" name="parent_full_name" class="form-input" 
-                                   value="<?php echo htmlspecialchars($application['full_name'] ?? ''); ?>">
+                            <input type="text" id="parent_full_name" name="parent_full_name" class="form-input"
+                                value="<?php echo htmlspecialchars($application['full_name'] ?? ''); ?>">
                         </div>
                         <div class="form-group">
                             <label for="parent_surname" class="form-label">Surname</label>
-                            <input type="text" id="parent_surname" name="parent_surname" class="form-input" 
-                                   value="<?php echo htmlspecialchars($application['surname'] ?? ''); ?>">
+                            <input type="text" id="parent_surname" name="parent_surname" class="form-input"
+                                value="<?php echo htmlspecialchars($application['surname'] ?? ''); ?>">
                         </div>
                         <div class="form-group">
                             <label for="parent_relationship" class="form-label">Relationship</label>
@@ -687,23 +711,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                         <div class="form-group">
                             <label for="parent_cellphone" class="form-label">Cellphone Number</label>
-                            <input type="tel" id="parent_cellphone" name="parent_cellphone" class="form-input" 
-                                   value="<?php echo htmlspecialchars($application['cellphone_number'] ?? ''); ?>">
+                            <input type="tel" id="parent_cellphone" name="parent_cellphone" class="form-input"
+                                value="<?php echo htmlspecialchars($application['cellphone_number'] ?? ''); ?>">
                         </div>
                         <div class="form-group">
                             <label for="parent_email" class="form-label">Email Address</label>
-                            <input type="email" id="parent_email" name="parent_email" class="form-input" 
-                                   value="<?php echo htmlspecialchars($application['email_address'] ?? ''); ?>">
+                            <input type="email" id="parent_email" name="parent_email" class="form-input"
+                                value="<?php echo htmlspecialchars($application['email_address'] ?? ''); ?>">
                         </div>
                         <div class="form-group">
                             <label for="parent_occupation" class="form-label">Occupation</label>
-                            <input type="text" id="parent_occupation" name="parent_occupation" class="form-input" 
-                                   value="<?php echo htmlspecialchars($application['occupation'] ?? ''); ?>">
+                            <input type="text" id="parent_occupation" name="parent_occupation" class="form-input"
+                                value="<?php echo htmlspecialchars($application['occupation'] ?? ''); ?>">
                         </div>
                         <div class="form-group full-width">
                             <label for="parent_employer" class="form-label">Employer</label>
-                            <input type="text" id="parent_employer" name="parent_employer" class="form-input" 
-                                   value="<?php echo htmlspecialchars($application['employer'] ?? ''); ?>">
+                            <input type="text" id="parent_employer" name="parent_employer" class="form-input"
+                                value="<?php echo htmlspecialchars($application['employer'] ?? ''); ?>">
                         </div>
                     </div>
                 </div>
@@ -715,58 +739,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </h2>
                     <div id="universityChoices">
                         <?php foreach ($university_choices as $index => $choice): ?>
-                        <div class="university-choice">
-                            <div class="choice-header">
-                                <span class="choice-number">Choice <?php echo $index + 1; ?></span>
-                                <?php if ($index > 0): ?>
-                                <button type="button" class="remove-choice" onclick="removeChoice(this)">Remove</button>
-                                <?php endif; ?>
-                            </div>
-                            <div class="form-grid">
-                                <div class="form-group">
-                                    <label class="form-label">University</label>
-                                    <select name="university_choices[<?php echo $index; ?>][university_id]" class="form-select">
-                                        <option value="">Select University</option>
-                                        <?php foreach ($universities as $university): ?>
-                                        <option value="<?php echo $university['id']; ?>" 
-                                                <?php echo $choice['university_id'] == $university['id'] ? 'selected' : ''; ?>>
-                                            <?php echo htmlspecialchars($university['name']); ?>
-                                        </option>
-                                        <?php endforeach; ?>
-                                    </select>
+                            <div class="university-choice">
+                                <div class="choice-header">
+                                    <span class="choice-number">Choice <?php echo $index + 1; ?></span>
+                                    <?php if ($index > 0): ?>
+                                        <button type="button" class="remove-choice" onclick="removeChoice(this)">Remove</button>
+                                    <?php endif; ?>
                                 </div>
-                                <div class="form-group">
-                                    <label class="form-label">Course/Program</label>
-                                    <input type="text" name="university_choices[<?php echo $index; ?>][course]" class="form-input" 
-                                           value="<?php echo htmlspecialchars($choice['course'] ?? ''); ?>">
+                                <div class="form-grid">
+                                    <div class="form-group">
+                                        <label class="form-label">University</label>
+                                        <select name="university_choices[<?php echo $index; ?>][university_id]" class="form-select">
+                                            <option value="">Select University</option>
+                                            <?php foreach ($universities as $university): ?>
+                                                <option value="<?php echo $university['id']; ?>"
+                                                    <?php echo $choice['university_id'] == $university['id'] ? 'selected' : ''; ?>>
+                                                    <?php echo htmlspecialchars($university['name']); ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Course/Program</label>
+                                        <input type="text" name="university_choices[<?php echo $index; ?>][course]" class="form-input"
+                                            value="<?php echo htmlspecialchars($choice['course'] ?? ''); ?>">
+                                    </div>
                                 </div>
                             </div>
-                        </div>
                         <?php endforeach; ?>
-                        
+
                         <?php if (empty($university_choices)): ?>
-                        <div class="university-choice">
-                            <div class="choice-header">
-                                <span class="choice-number">Choice 1</span>
-                            </div>
-                            <div class="form-grid">
-                                <div class="form-group">
-                                    <label class="form-label">University</label>
-                                    <select name="university_choices[0][university_id]" class="form-select">
-                                        <option value="">Select University</option>
-                                        <?php foreach ($universities as $university): ?>
-                                        <option value="<?php echo $university['id']; ?>">
-                                            <?php echo htmlspecialchars($university['name']); ?>
-                                        </option>
-                                        <?php endforeach; ?>
-                                    </select>
+                            <div class="university-choice">
+                                <div class="choice-header">
+                                    <span class="choice-number">Choice 1</span>
                                 </div>
-                                <div class="form-group">
-                                    <label class="form-label">Course/Program</label>
-                                    <input type="text" name="university_choices[0][course]" class="form-input">
+                                <div class="form-grid">
+                                    <div class="form-group">
+                                        <label class="form-label">University</label>
+                                        <select name="university_choices[0][university_id]" class="form-select">
+                                            <option value="">Select University</option>
+                                            <?php foreach ($universities as $university): ?>
+                                                <option value="<?php echo $university['id']; ?>">
+                                                    <?php echo htmlspecialchars($university['name']); ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Course/Program</label>
+                                        <input type="text" name="university_choices[0][course]" class="form-input">
+                                    </div>
                                 </div>
                             </div>
-                        </div>
                         <?php endif; ?>
                     </div>
                     <button type="button" class="add-choice" onclick="addChoice()">
@@ -799,7 +823,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             const container = document.getElementById('universityChoices');
             const choiceDiv = document.createElement('div');
             choiceDiv.className = 'university-choice';
-            
+
             choiceDiv.innerHTML = `
                 <div class="choice-header">
                     <span class="choice-number">Choice ${choiceCount + 1}</span>
@@ -819,7 +843,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                 </div>
             `;
-            
+
             container.appendChild(choiceDiv);
             choiceCount++;
             updateChoiceNumbers();
@@ -835,16 +859,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             const choices = document.querySelectorAll('.university-choice');
             choices.forEach((choice, index) => {
                 choice.querySelector('.choice-number').textContent = `Choice ${index + 1}`;
-                
+
                 // Update input names
                 const selects = choice.querySelectorAll('select');
                 const inputs = choice.querySelectorAll('input');
-                
+
                 selects.forEach(select => {
                     const name = select.name.replace(/\[\d+\]/, `[${index}]`);
                     select.name = name;
                 });
-                
+
                 inputs.forEach(input => {
                     const name = input.name.replace(/\[\d+\]/, `[${index}]`);
                     input.name = name;
@@ -856,7 +880,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         document.getElementById('editForm').addEventListener('submit', function(e) {
             const requiredFields = ['full_name', 'surname', 'email_address', 'cellphone_number'];
             let isValid = true;
-            
+
             requiredFields.forEach(field => {
                 const input = document.getElementById(field);
                 if (!input.value.trim()) {
@@ -866,7 +890,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     input.style.borderColor = 'var(--gray-300)';
                 }
             });
-            
+
             if (!isValid) {
                 e.preventDefault();
                 alert('Please fill in all required fields.');
@@ -874,4 +898,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         });
     </script>
 </body>
+
 </html>

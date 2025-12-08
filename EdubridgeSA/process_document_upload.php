@@ -125,8 +125,8 @@ if (!in_array($docType, $allowedDocTypes)) {
 }
 
 try {
-    // Get application details
-    $sql = "SELECT * FROM applications WHERE id = ?";
+    // Get application details (only required columns)
+    $sql = "SELECT id, reference_number, email_address, application_status, created_at FROM applications WHERE id = ?";
     $stmt = $pdo->prepare($sql);
     $stmt->execute([$applicationId]);
     $application = $stmt->fetch(PDO::FETCH_ASSOC);

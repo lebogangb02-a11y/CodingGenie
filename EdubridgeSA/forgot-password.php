@@ -25,7 +25,9 @@ $message_type = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Server-side CSRF enforcement (best-effort)
-    if (function_exists('require_csrf')) { require_csrf(); }
+    if (function_exists('require_csrf')) {
+        require_csrf();
+    }
 
     // CSRF protection
     if (!isset($_POST[CSRF_TOKEN_NAME]) || $_POST[CSRF_TOKEN_NAME] !== $_SESSION[CSRF_TOKEN_NAME]) {
@@ -33,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $message_type = 'error';
     } else {
         $email = trim($_POST['email'] ?? '');
-        
+
         if (empty($email)) {
             $message = 'Please enter your email address.';
             $message_type = 'error';
@@ -76,7 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     // Send reset email
                     $mail = new PHPMailer(true);
-                    
+
                     try {
                         // Server settings
                         $mail->isSMTP();
@@ -94,9 +96,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         // Content
                         $mail->isHTML(true);
                         $mail->Subject = 'Password Reset Request - EduBridge SA';
-                        
+
                         $reset_link = "http://" . $_SERVER['HTTP_HOST'] . dirname($_SERVER['PHP_SELF']) . "/reset-password.php?token=" . $reset_token;
-                        
+
                         $mail->Body = "
                         <html>
                         <head>
@@ -132,10 +134,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </html>";
 
                         $mail->send();
-                        
+
                         $message = 'Password reset instructions have been sent to your email address.';
                         $message_type = 'success';
-                        
                     } catch (Exception $e) {
                         $message = 'Failed to send reset email. Please try again later.';
                         $message_type = 'error';
@@ -148,7 +149,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 // Regenerate CSRF token
                 $_SESSION[CSRF_TOKEN_NAME] = bin2hex(random_bytes(32));
-
             } catch (PDOException $e) {
                 $message = 'Database error occurred. Please try again later.';
                 $message_type = 'error';
@@ -159,6 +159,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -215,6 +216,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             text-align: center;
             margin-bottom: 2rem;
         }
+
         .logo img {
             height: 48px;
             width: auto;
@@ -338,6 +340,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     </style>
 </head>
+
 <body>
     <div class="forgot-container">
         <div class="logo">
@@ -356,12 +359,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <form method="POST" action="forgot-password.php">
             <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo $_SESSION[CSRF_TOKEN_NAME]; ?>">
-            
+
             <div class="form-group">
                 <label for="email">Email Address</label>
-                <input type="email" id="email" name="email" required 
-                       value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>"
-                       placeholder="Enter your email address">
+                <input type="email" id="email" name="email" required
+                    value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>"
+                    placeholder="Enter your email address">
             </div>
 
             <button type="submit" class="submit-btn">
@@ -376,4 +379,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
     </div>
 </body>
+
 </html>

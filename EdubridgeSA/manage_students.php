@@ -30,10 +30,12 @@ $controller = new StudentController($pdo);
 // Handle bulk actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bulk_action'])) {
     // Server-side CSRF enforcement (if helpers available)
-    if (function_exists('require_csrf')) { require_csrf(); }
+    if (function_exists('require_csrf')) {
+        require_csrf();
+    }
     $selected = array_map('intval', $_POST['selected'] ?? []);
     $action = $_POST['bulk_action'];
-    
+
     if ($selected) {
         switch ($action) {
             case 'approve':
@@ -116,6 +118,7 @@ try {
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -128,24 +131,59 @@ try {
             border: none;
             border-radius: 10px;
         }
+
         .stats-card:hover {
             transform: translateY(-2px);
         }
+
         .status-badge {
             font-size: 0.75rem;
             padding: 0.35em 0.65em;
         }
-        .badge-pending { background-color: #ffc107; color: #000; }
-        .badge-approved { background-color: #198754; color: #fff; }
-        .badge-rejected { background-color: #dc3545; color: #fff; }
-        .badge-under_review { background-color: #0dcaf0; color: #000; }
-        .table-hover tbody tr:hover { background-color: rgba(0,0,0,0.025); }
-        .bulk-actions { background-color: #f8f9fa; border-radius: 8px; }
-        .export-dropdown .dropdown-menu { min-width: 200px; }
-        .quick-actions .btn { font-size: 0.875rem; }
-        .search-highlight { background-color: #fff3cd; }
+
+        .badge-pending {
+            background-color: #ffc107;
+            color: #000;
+        }
+
+        .badge-approved {
+            background-color: #198754;
+            color: #fff;
+        }
+
+        .badge-rejected {
+            background-color: #dc3545;
+            color: #fff;
+        }
+
+        .badge-under_review {
+            background-color: #0dcaf0;
+            color: #000;
+        }
+
+        .table-hover tbody tr:hover {
+            background-color: rgba(0, 0, 0, 0.025);
+        }
+
+        .bulk-actions {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .export-dropdown .dropdown-menu {
+            min-width: 200px;
+        }
+
+        .quick-actions .btn {
+            font-size: 0.875rem;
+        }
+
+        .search-highlight {
+            background-color: #fff3cd;
+        }
     </style>
 </head>
+
 <body>
     <nav class="navbar navbar-dark bg-dark mb-4">
         <div class="container-fluid">
@@ -399,7 +437,7 @@ try {
                                         </td>
                                     </tr>
                                 <?php else: ?>
-                                    <?php foreach ($students as $student): 
+                                    <?php foreach ($students as $student):
                                         $name = trim(($student['first_name'] ?? '') . ' ' . ($student['last_name'] ?? ''));
                                         $status = $student['status'] ?? 'pending';
                                         $email = $student['email'] ?? '';
@@ -479,12 +517,12 @@ try {
                             <i class="bi bi-chevron-left"></i> Previous
                         </a>
                     </li>
-                    
+
                     <?php
                     $startPage = max(1, $page - 2);
                     $endPage = min($pages, $page + 2);
-                    
-                    for ($i = $startPage; $i <= $endPage; $i++): 
+
+                    for ($i = $startPage; $i <= $endPage; $i++):
                         $active = $i == $page ? 'active' : '';
                     ?>
                         <li class="page-item <?= $active ?>">
@@ -493,7 +531,7 @@ try {
                             </a>
                         </li>
                     <?php endfor; ?>
-                    
+
                     <li class="page-item <?= $page >= $pages ? 'disabled' : '' ?>">
                         <a class="page-link" href="?<?= http_build_query(array_merge($_GET, ['page' => $page + 1])) ?>">
                             Next <i class="bi bi-chevron-right"></i>
@@ -506,47 +544,48 @@ try {
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-    function toggleAll(source, name) {
-        const checkboxes = document.getElementsByName(name);
-        for (let checkbox of checkboxes) {
-            checkbox.checked = source.checked;
-        }
-    }
-
-    function updateBulkButton(select) {
-        const btn = document.getElementById('bulkActionBtn');
-        const value = select.value;
-        
-        if (value === 'delete') {
-            btn.className = 'btn btn-sm btn-danger';
-            btn.innerHTML = '<i class="bi bi-trash me-1"></i> Delete Selected';
-        } else if (value === 'export_csv') {
-            btn.className = 'btn btn-sm btn-success';
-            btn.innerHTML = '<i class="bi bi-download me-1"></i> Export Selected';
-        } else {
-            btn.className = 'btn btn-sm btn-primary';
-            btn.innerHTML = '<i class="bi bi-gear me-1"></i> Apply';
-        }
-    }
-
-    // Add confirmation for bulk delete
-    document.getElementById('bulkForm').addEventListener('submit', function(e) {
-        const action = this.bulk_action.value;
-        const selected = Array.from(this.elements['selected[]']).filter(cb => cb.checked);
-        
-        if (action === 'delete' && selected.length > 0) {
-            if (!confirm(`Are you sure you want to delete ${selected.length} student(s)? This action cannot be undone.`)) {
-                e.preventDefault();
+        function toggleAll(source, name) {
+            const checkboxes = document.getElementsByName(name);
+            for (let checkbox of checkboxes) {
+                checkbox.checked = source.checked;
             }
         }
-        
-        // Add loading state for exports
-        if (action === 'export_csv' && selected.length > 0) {
-            const btn = this.querySelector('#bulkActionBtn');
-            btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Preparing...';
-            btn.disabled = true;
+
+        function updateBulkButton(select) {
+            const btn = document.getElementById('bulkActionBtn');
+            const value = select.value;
+
+            if (value === 'delete') {
+                btn.className = 'btn btn-sm btn-danger';
+                btn.innerHTML = '<i class="bi bi-trash me-1"></i> Delete Selected';
+            } else if (value === 'export_csv') {
+                btn.className = 'btn btn-sm btn-success';
+                btn.innerHTML = '<i class="bi bi-download me-1"></i> Export Selected';
+            } else {
+                btn.className = 'btn btn-sm btn-primary';
+                btn.innerHTML = '<i class="bi bi-gear me-1"></i> Apply';
+            }
         }
-    });
+
+        // Add confirmation for bulk delete
+        document.getElementById('bulkForm').addEventListener('submit', function(e) {
+            const action = this.bulk_action.value;
+            const selected = Array.from(this.elements['selected[]']).filter(cb => cb.checked);
+
+            if (action === 'delete' && selected.length > 0) {
+                if (!confirm(`Are you sure you want to delete ${selected.length} student(s)? This action cannot be undone.`)) {
+                    e.preventDefault();
+                }
+            }
+
+            // Add loading state for exports
+            if (action === 'export_csv' && selected.length > 0) {
+                const btn = this.querySelector('#bulkActionBtn');
+                btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Preparing...';
+                btn.disabled = true;
+            }
+        });
     </script>
 </body>
+
 </html>

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Environment Variable Loader
  * Load .env file and populate $_ENV and $_SERVER

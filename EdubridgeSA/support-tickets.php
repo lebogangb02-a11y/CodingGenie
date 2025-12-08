@@ -36,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['subject'])) {
 // Fetch student tickets
 $tickets = [];
 if ($email) {
-  $stmt = $pdo->prepare('SELECT * FROM support_tickets WHERE email = ? OR student_id = ? ORDER BY updated_at DESC');
+  $stmt = $pdo->prepare('SELECT id, subject, status, student_id, email, updated_at, created_at FROM support_tickets WHERE email = ? OR student_id = ? ORDER BY updated_at DESC LIMIT 200');
   $stmt->execute([$email, $student_id]);
   $tickets = $stmt->fetchAll(PDO::FETCH_ASSOC);
 }

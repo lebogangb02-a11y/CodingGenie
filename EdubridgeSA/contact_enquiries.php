@@ -13,25 +13,26 @@ $enquiries = [];
 // Handle actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Server-side CSRF enforcement (no-op if helper not available)
-    if (function_exists('require_csrf')) { require_csrf(); }
+    if (function_exists('require_csrf')) {
+        require_csrf();
+    }
     if (isset($_POST['update_enquiry_status']) && isset($_POST['enquiry_id'])) {
         $enquiryId = (int)$_POST['enquiry_id'];
         $status = $_POST['status'] ?? 'new';
         $assignedTo = $_POST['assigned_to'] ?? null;
-        
+
         try {
             $stmt = $pdo->prepare('UPDATE contact_enquiries SET status = ?, assigned_to = ?, updated_at = NOW() WHERE id = ?');
             $stmt->execute([$status, $assignedTo, $enquiryId]);
-            
+
             // Log activity
             $logStmt = $pdo->prepare('INSERT INTO admin_activity_logs (admin_username, action, details, ip_address) VALUES (?, ?, ?, ?)');
             $logStmt->execute([$username, 'Update Enquiry', "Updated enquiry #$enquiryId to $status", $_SERVER['REMOTE_ADDR'] ?? '']);
-            
         } catch (Throwable $e) {
             // Silently fail
         }
     }
-    
+
     if (isset($_POST['delete_enquiry']) && isset($_POST['enquiry_id'])) {
         $enquiryId = (int)$_POST['enquiry_id'];
         try {
@@ -48,26 +49,25 @@ if (isset($pdo) && $pdo instanceof PDO) {
     try {
         $filter = $_GET['status'] ?? 'all';
         $type = $_GET['type'] ?? 'all';
-        
-        $sql = "SELECT * FROM contact_enquiries WHERE 1=1";
+
+        $sql = "SELECT id, name, email, subject, message, enquiry_type, status, assigned_to, created_at FROM contact_enquiries WHERE 1=1";
         $params = [];
-        
+
         if ($filter !== 'all') {
             $sql .= " AND status = ?";
             $params[] = $filter;
         }
-        
+
         if ($type !== 'all') {
             $sql .= " AND enquiry_type = ?";
             $params[] = $type;
         }
-        
+
         $sql .= " ORDER BY created_at DESC";
-        
+
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
         $enquiries = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
     } catch (Throwable $e) {
         // Silently fail
     }
@@ -113,9 +113,9 @@ admin_header('Student Enquiries');
                                     <?= ucfirst(str_replace('_', ' ', $enquiry['status'])) ?>
                                 </span>
                             </div>
-                            
+
                             <p class="card-text"><?= nl2br(htmlspecialchars($enquiry['message'])) ?></p>
-                            
+
                             <div class="enquiry-meta mb-3">
                                 <div class="row small text-muted">
                                     <div class="col-6">
@@ -132,7 +132,7 @@ admin_header('Student Enquiries');
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <form method="post" class="enquiry-actions">
                                 <input type="hidden" name="enquiry_id" value="<?= $enquiry['id'] ?>">
                                 <div class="row g-2">
@@ -145,8 +145,8 @@ admin_header('Student Enquiries');
                                         </select>
                                     </div>
                                     <div class="col-md-6">
-                                        <button type="submit" name="delete_enquiry" class="btn btn-sm btn-outline-danger w-100" 
-                                                onclick="return confirm('Delete this enquiry?')">
+                                        <button type="submit" name="delete_enquiry" class="btn btn-sm btn-outline-danger w-100"
+                                            onclick="return confirm('Delete this enquiry?')">
                                             <i class="bi bi-trash"></i> Delete
                                         </button>
                                     </div>

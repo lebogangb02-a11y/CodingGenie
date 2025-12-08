@@ -34,7 +34,7 @@ $pdo->exec("CREATE TABLE IF NOT EXISTS admin_activity_logs (
 
 // Get audit logs
 try {
-    $stmt = $pdo->query("SELECT * FROM admin_activity_logs ORDER BY created_at DESC LIMIT 100");
+    $stmt = $pdo->query("SELECT id, admin_username, action, details, created_at FROM admin_activity_logs ORDER BY created_at DESC LIMIT 100");
     $auditLogs = $stmt->fetchAll();
 } catch (PDOException $e) {
     $auditLogs = [];

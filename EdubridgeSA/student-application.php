@@ -60,7 +60,7 @@ try {
     $university_choices = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // Get all universities for dropdown
-    $stmt = $pdo->query("SELECT * FROM universities ORDER BY name");
+    $stmt = $pdo->query("SELECT id, name, country FROM universities ORDER BY name LIMIT 500");
     $universities = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     error_log("Database error: " . $e->getMessage());

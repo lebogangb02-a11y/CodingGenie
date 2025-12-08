@@ -224,8 +224,14 @@ function backupDatabase()
                 $output .= $createResult['Create Table'] . ";\n\n";
             }
 
-            // Get all rows for INSERT (single query per table, not per row)
-            $rows = $pdo->query("SELECT * FROM `$table`")->fetchAll(PDO::FETCH_ASSOC);
+            // Get column list then fetch rows to avoid SELECT * and large memory spikes
+            $columns = [];
+            $colStmt = $pdo->query("DESCRIBE `$table`");
+            foreach ($colStmt->fetchAll(PDO::FETCH_ASSOC) as $colRow) {
+                $columns[] = '`' . $colRow['Field'] . '`';
+            }
+            $colList = implode(', ', $columns);
+            $rows = $pdo->query("SELECT $colList FROM `$table`")->fetchAll(PDO::FETCH_ASSOC);
 
             if (count($rows) > 0) {
                 $output .= "INSERT INTO `$table` VALUES ";

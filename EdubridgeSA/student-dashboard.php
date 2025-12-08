@@ -32,13 +32,13 @@ $resolvedId = null;
 
 try {
     $contactEmail = $_SESSION['student_email'] ?? $_SESSION['email'] ?? null;
-    
+
     // Prefer session reference number if available
     if (!empty($reference_number)) {
         $resolvedRef = $reference_number;
         $resolvedId = null; // Will resolve ID separately if needed
     }
-    
+
     // OPTIMIZED: Single consolidated query for application resolution + chat stats
     // This consolidates 4 previous separate queries into one
     $sql = "
@@ -65,11 +65,11 @@ try {
         ORDER BY a.updated_at DESC, a.id DESC
         LIMIT 1
     ";
-    
+
     $stmt = $pdo->prepare($sql);
     $stmt->execute([$student_id, $student_id, $student_id, $contactEmail, $resolvedRef ?: '']);
     $consolidated = $stmt->fetch(PDO::FETCH_ASSOC);
-    
+
     if ($consolidated && !empty($consolidated['app_id'])) {
         $resolvedId = (int)$consolidated['app_id'];
         if (!$resolvedRef && !empty($consolidated['reference_number'])) {
@@ -78,7 +78,7 @@ try {
         $activeChats = (int)$consolidated['active_chats'];
         $unreadChatMessages = (int)$consolidated['unread_messages'];
     }
-    
+
     // Fallback: if no consolidated result, try email-only lookup
     if (!$resolvedId && $contactEmail) {
         $stmt2 = $pdo->prepare("SELECT id, reference_number FROM applications WHERE email_address = ? ORDER BY updated_at DESC, id DESC LIMIT 1");
@@ -91,7 +91,7 @@ try {
             }
         }
     }
-    
+
     // Final fallback: if session ref exists but no ID found yet, resolve by ref
     if (!$resolvedId) {
         $sessionRef = $_SESSION['reference_number'] ?? null;
@@ -107,7 +107,7 @@ try {
             }
         }
     }
-    
+
     if ($resolvedRef) {
         $upload_docs_url = 'document_upload.php?ref=' . urlencode($resolvedRef);
     }
@@ -142,7 +142,7 @@ try {
     if (isset($resolvedId) && $resolvedId) {
         $application_id = (int)$resolvedId;
     }
-    
+
     // If we found an application, compute progress using core milestones
     if ($application_id) {
         $total_steps = 4;

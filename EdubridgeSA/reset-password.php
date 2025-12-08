@@ -49,7 +49,6 @@ if (!empty($token)) {
             $message = 'Invalid or expired reset token. Please request a new password reset.';
             $message_type = 'error';
         }
-
     } catch (PDOException $e) {
         $message = 'Database error occurred. Please try again later.';
         $message_type = 'error';
@@ -62,7 +61,9 @@ if (!empty($token)) {
 // Handle password reset
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $valid_token) {
     // Server-side CSRF enforcement (best-effort)
-    if (function_exists('require_csrf')) { require_csrf(); }
+    if (function_exists('require_csrf')) {
+        require_csrf();
+    }
 
     // CSRF protection
     if (!isset($_POST[CSRF_TOKEN_NAME]) || $_POST[CSRF_TOKEN_NAME] !== $_SESSION[CSRF_TOKEN_NAME]) {
@@ -138,6 +139,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $valid_token) {
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -194,6 +196,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $valid_token) {
             text-align: center;
             margin-bottom: 2rem;
         }
+
         .logo img {
             height: 48px;
             width: auto;
@@ -375,6 +378,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $valid_token) {
         }
     </style>
 </head>
+
 <body>
     <div class="reset-container">
         <div class="logo">
@@ -396,11 +400,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $valid_token) {
         <?php if ($valid_token): ?>
             <form method="POST" action="reset-password.php" id="resetForm">
                 <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo $_SESSION[CSRF_TOKEN_NAME]; ?>">
-                
+
                 <div class="form-group">
                     <label for="new_password">New Password</label>
-                    <input type="password" id="new_password" name="new_password" required 
-                           placeholder="Enter your new password">
+                    <input type="password" id="new_password" name="new_password" required
+                        placeholder="Enter your new password">
                     <div class="password-strength">
                         <div class="strength-bar">
                             <div class="strength-fill"></div>
@@ -433,8 +437,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $valid_token) {
 
                 <div class="form-group">
                     <label for="confirm_password">Confirm Password</label>
-                    <input type="password" id="confirm_password" name="confirm_password" required 
-                           placeholder="Confirm your new password">
+                    <input type="password" id="confirm_password" name="confirm_password" required
+                        placeholder="Confirm your new password">
                     <div id="password-match" style="font-size: 0.875rem; margin-top: 0.5rem;"></div>
                 </div>
 
@@ -548,7 +552,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $valid_token) {
         function updateSubmitButton() {
             const isPasswordStrong = checkPasswordStrength();
             const doPasswordsMatch = checkPasswordMatch();
-            
+
             submitBtn.disabled = !(isPasswordStrong && doPasswordsMatch && newPasswordInput.value.length > 0);
         }
 
@@ -556,4 +560,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $valid_token) {
         confirmPasswordInput.addEventListener('input', updateSubmitButton);
     </script>
 </body>
+
 </html>

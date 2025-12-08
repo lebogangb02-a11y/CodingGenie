@@ -158,7 +158,7 @@ try {
     $pdo = new PDO("mysql:host=" . DB_HOST . ";dbname=" . DB_NAME, DB_USER, DB_PASS);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    $stmt = $pdo->prepare("SELECT * FROM application_documents WHERE application_id = ? AND document_type = ?");
+    $stmt = $pdo->prepare("SELECT id, application_id, document_type, file_path, file_size, created_at FROM application_documents WHERE application_id = ? AND document_type = ? LIMIT 1");
     $stmt->execute([$student_id, $document_type]);
     $existing_document = $stmt->fetch(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {

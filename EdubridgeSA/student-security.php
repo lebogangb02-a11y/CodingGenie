@@ -19,7 +19,9 @@ $message_type = '';
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Server-side CSRF enforcement (best-effort)
-    if (function_exists('require_csrf')) { require_csrf(); }
+    if (function_exists('require_csrf')) {
+        require_csrf();
+    }
 
     // CSRF protection
     if (!isset($_POST[CSRF_TOKEN_NAME]) || $_POST[CSRF_TOKEN_NAME] !== $_SESSION[CSRF_TOKEN_NAME]) {
@@ -98,7 +100,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $message = implode('<br>', $errors);
                     $message_type = 'error';
                 }
-
             } elseif ($action === 'clear_sessions') {
                 // Clear all remember me sessions
                 $stmt = $pdo->prepare("
@@ -110,7 +111,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $message = 'All remember me sessions have been cleared successfully.';
                 $message_type = 'success';
-
             } elseif ($action === 'reset_login_attempts') {
                 // Reset login attempts (admin feature for self-service)
                 $stmt = $pdo->prepare("
@@ -123,7 +123,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $message = 'Login attempts have been reset successfully.';
                 $message_type = 'success';
             }
-
         } catch (PDOException $e) {
             $message = 'Database error occurred. Please try again.';
             $message_type = 'error';
@@ -160,7 +159,6 @@ try {
         header('Location: student-login.php');
         exit();
     }
-
 } catch (PDOException $e) {
     $message = 'Error loading security information.';
     $message_type = 'error';
@@ -170,6 +168,7 @@ try {
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -234,6 +233,7 @@ try {
             display: inline-flex;
             align-items: center;
         }
+
         .logo img {
             height: 28px;
             width: auto;
@@ -492,10 +492,21 @@ try {
             width: 0%;
         }
 
-        .strength-weak { background: var(--danger-color); }
-        .strength-fair { background: var(--warning-color); }
-        .strength-good { background: var(--secondary-color); }
-        .strength-strong { background: var(--primary-color); }
+        .strength-weak {
+            background: var(--danger-color);
+        }
+
+        .strength-fair {
+            background: var(--warning-color);
+        }
+
+        .strength-good {
+            background: var(--secondary-color);
+        }
+
+        .strength-strong {
+            background: var(--primary-color);
+        }
 
         /* Responsive */
         @media (max-width: 768px) {
@@ -522,6 +533,7 @@ try {
         }
     </style>
 </head>
+
 <body>
     <!-- Navigation -->
     <nav class="navbar">
@@ -592,7 +604,7 @@ try {
                 <form method="POST" action="student-security.php" id="passwordForm">
                     <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo $_SESSION[CSRF_TOKEN_NAME]; ?>">
                     <input type="hidden" name="action" value="change_password">
-                    
+
                     <div class="form-group">
                         <label for="current_password" class="form-label">Current Password *</label>
                         <input type="password" id="current_password" name="current_password" class="form-input" required>
@@ -637,20 +649,20 @@ try {
                     <form method="POST" action="student-security.php" style="flex: 1;">
                         <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo $_SESSION[CSRF_TOKEN_NAME]; ?>">
                         <input type="hidden" name="action" value="clear_sessions">
-                        <button type="submit" class="btn btn-warning action-button" 
-                                onclick="return confirm('This will log you out of all devices where you selected Remember Me. Continue?')">
+                        <button type="submit" class="btn btn-warning action-button"
+                            onclick="return confirm('This will log you out of all devices where you selected Remember Me. Continue?')">
                             Clear All Sessions
                         </button>
                     </form>
 
                     <?php if (($user_data['login_attempts'] ?? 0) > 0): ?>
-                    <form method="POST" action="student-security.php" style="flex: 1;">
-                        <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo $_SESSION[CSRF_TOKEN_NAME]; ?>">
-                        <input type="hidden" name="action" value="reset_login_attempts">
-                        <button type="submit" class="btn btn-secondary action-button">
-                            Reset Login Attempts
-                        </button>
-                    </form>
+                        <form method="POST" action="student-security.php" style="flex: 1;">
+                            <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo $_SESSION[CSRF_TOKEN_NAME]; ?>">
+                            <input type="hidden" name="action" value="reset_login_attempts">
+                            <button type="submit" class="btn btn-secondary action-button">
+                                Reset Login Attempts
+                            </button>
+                        </form>
                     <?php endif; ?>
                 </div>
 
@@ -672,27 +684,27 @@ try {
         document.getElementById('new_password').addEventListener('input', function(e) {
             const password = e.target.value;
             const strengthBar = document.getElementById('strengthBar');
-            
+
             let strength = 0;
             let width = 0;
             let className = '';
-            
+
             // Check length
             if (password.length >= 8) strength++;
-            
+
             // Check for lowercase
             if (/[a-z]/.test(password)) strength++;
-            
+
             // Check for uppercase
             if (/[A-Z]/.test(password)) strength++;
-            
+
             // Check for numbers
             if (/\d/.test(password)) strength++;
-            
+
             // Check for special characters
             if (/[@$!%*?&]/.test(password)) strength++;
-            
-            switch(strength) {
+
+            switch (strength) {
                 case 0:
                 case 1:
                     width = 20;
@@ -715,7 +727,7 @@ try {
                     className = 'strength-strong';
                     break;
             }
-            
+
             strengthBar.style.width = width + '%';
             strengthBar.className = 'password-strength-bar ' + className;
         });
@@ -724,25 +736,25 @@ try {
         document.getElementById('passwordForm').addEventListener('submit', function(e) {
             const newPassword = document.getElementById('new_password').value;
             const confirmPassword = document.getElementById('confirm_password').value;
-            
+
             if (newPassword !== confirmPassword) {
                 e.preventDefault();
                 alert('New password and confirmation do not match.');
                 return false;
             }
-            
+
             if (newPassword.length < 8) {
                 e.preventDefault();
                 alert('Password must be at least 8 characters long.');
                 return false;
             }
-            
+
             if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/.test(newPassword)) {
                 e.preventDefault();
                 alert('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.');
                 return false;
             }
-            
+
             // Show loading state
             const submitBtn = e.target.querySelector('button[type="submit"]');
             submitBtn.textContent = 'Changing Password...';
@@ -753,7 +765,7 @@ try {
         document.getElementById('confirm_password').addEventListener('input', function(e) {
             const newPassword = document.getElementById('new_password').value;
             const confirmPassword = e.target.value;
-            
+
             if (confirmPassword && newPassword !== confirmPassword) {
                 e.target.style.borderColor = 'var(--danger-color)';
             } else {
@@ -762,4 +774,5 @@ try {
         });
     </script>
 </body>
+
 </html>

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Document Upload Page
  * EduBridge SA - University Application System
@@ -47,24 +48,23 @@ if ($token !== $expectedToken) {
 
 // Get application details
 try {
-    $sql = "SELECT * FROM applications WHERE id = ?";
+    $sql = "SELECT id, reference_number, email_address, application_status, created_at FROM applications WHERE id = ?";
     $stmt = $pdo->prepare($sql);
     $stmt->execute([$applicationId]);
     $application = $stmt->fetch(PDO::FETCH_ASSOC);
-    
+
     if (!$application) {
         $_SESSION['form_message'] = 'Application not found.';
         $_SESSION['form_message_type'] = 'error';
         header('Location: apply_improved.php');
         exit;
     }
-    
+
     // Get uploaded documents
-    $docSql = "SELECT * FROM documents WHERE application_id = ? ORDER BY uploaded_at DESC";
+    $docSql = "SELECT id, application_id, doc_type, file_name, file_path, file_size, uploaded_at FROM documents WHERE application_id = ? ORDER BY uploaded_at DESC LIMIT 200";
     $docStmt = $pdo->prepare($docSql);
     $docStmt->execute([$applicationId]);
     $uploadedDocs = $docStmt->fetchAll(PDO::FETCH_ASSOC);
-    
 } catch (PDOException $e) {
     error_log("Database error in upload_documents.php: " . $e->getMessage());
     $_SESSION['form_message'] = 'Database error occurred.';
@@ -97,6 +97,7 @@ if (!isset($_SESSION[CSRF_TOKEN_NAME])) {
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -108,7 +109,7 @@ if (!isset($_SESSION[CSRF_TOKEN_NAME])) {
             margin: 0 auto;
             padding: 20px;
         }
-        
+
         .application-info {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -117,7 +118,7 @@ if (!isset($_SESSION[CSRF_TOKEN_NAME])) {
             margin-bottom: 30px;
             text-align: center;
         }
-        
+
         .document-section {
             background: #f8f9fa;
             border: 1px solid #e9ecef;
@@ -125,7 +126,7 @@ if (!isset($_SESSION[CSRF_TOKEN_NAME])) {
             padding: 20px;
             margin-bottom: 20px;
         }
-        
+
         .document-item {
             display: flex;
             justify-content: space-between;
@@ -136,24 +137,24 @@ if (!isset($_SESSION[CSRF_TOKEN_NAME])) {
             margin-bottom: 15px;
             background: white;
         }
-        
+
         .document-uploaded {
             background: #d4edda;
             border-color: #c3e6cb;
         }
-        
+
         .upload-form {
             display: flex;
             flex-direction: column;
             gap: 10px;
         }
-        
+
         .file-input {
             padding: 8px;
             border: 1px solid #ced4da;
             border-radius: 4px;
         }
-        
+
         .upload-btn {
             background: #28a745;
             color: white;
@@ -162,28 +163,28 @@ if (!isset($_SESSION[CSRF_TOKEN_NAME])) {
             border-radius: 4px;
             cursor: pointer;
         }
-        
+
         .upload-btn:hover {
             background: #218838;
         }
-        
+
         .status-badge {
             padding: 4px 8px;
             border-radius: 4px;
             font-size: 12px;
             font-weight: bold;
         }
-        
+
         .status-uploaded {
             background: #28a745;
             color: white;
         }
-        
+
         .status-pending {
             background: #ffc107;
             color: #212529;
         }
-        
+
         .progress-bar {
             width: 100%;
             height: 20px;
@@ -192,13 +193,13 @@ if (!isset($_SESSION[CSRF_TOKEN_NAME])) {
             overflow: hidden;
             margin: 20px 0;
         }
-        
+
         .progress-fill {
             height: 100%;
             background: linear-gradient(90deg, #28a745, #20c997);
             transition: width 0.3s ease;
         }
-        
+
         .complete-section {
             background: #d4edda;
             border: 1px solid #c3e6cb;
@@ -207,7 +208,7 @@ if (!isset($_SESSION[CSRF_TOKEN_NAME])) {
             text-align: center;
             margin-top: 30px;
         }
-        
+
         .file-requirements {
             background: #fff3cd;
             border: 1px solid #ffeaa7;
@@ -215,20 +216,21 @@ if (!isset($_SESSION[CSRF_TOKEN_NAME])) {
             padding: 15px;
             margin-bottom: 20px;
         }
-        
+
         @media (max-width: 768px) {
             .document-item {
                 flex-direction: column;
                 align-items: stretch;
                 gap: 10px;
             }
-            
+
             .upload-form {
                 width: 100%;
             }
         }
     </style>
 </head>
+
 <body>
     <div class="upload-container">
         <!-- Application Info Header -->
@@ -242,8 +244,8 @@ if (!isset($_SESSION[CSRF_TOKEN_NAME])) {
         <!-- Display Messages -->
         <?php if (isset($_SESSION['form_message'])): ?>
             <div class="alert alert-<?php echo $_SESSION['form_message_type']; ?>">
-                <?php 
-                echo htmlspecialchars($_SESSION['form_message']); 
+                <?php
+                echo htmlspecialchars($_SESSION['form_message']);
                 unset($_SESSION['form_message'], $_SESSION['form_message_type']);
                 ?>
             </div>
@@ -261,7 +263,7 @@ if (!isset($_SESSION[CSRF_TOKEN_NAME])) {
         </div>
 
         <!-- Progress Bar -->
-        <?php 
+        <?php
         $totalRequired = count($requiredDocs);
         $totalUploaded = count(array_intersect($uploadedDocTypes, array_keys($requiredDocs)));
         $progressPercentage = ($totalUploaded / $totalRequired) * 100;
@@ -277,7 +279,7 @@ if (!isset($_SESSION[CSRF_TOKEN_NAME])) {
         <!-- Document Upload Section -->
         <div class="document-section">
             <h3>Required Documents</h3>
-            
+
             <?php foreach ($requiredDocs as $docType => $docName): ?>
                 <div class="document-item <?php echo in_array($docType, $uploadedDocTypes) ? 'document-uploaded' : ''; ?>">
                     <div>
@@ -297,14 +299,14 @@ if (!isset($_SESSION[CSRF_TOKEN_NAME])) {
                             <span class="status-badge status-pending">⏳ Pending</span>
                         <?php endif; ?>
                     </div>
-                    
+
                     <?php if (!in_array($docType, $uploadedDocTypes)): ?>
                         <form class="upload-form" action="process_document_upload.php" method="post" enctype="multipart/form-data">
                             <input type="hidden" name="csrf_token" value="<?php echo $_SESSION[CSRF_TOKEN_NAME]; ?>">
                             <input type="hidden" name="application_id" value="<?php echo $applicationId; ?>">
                             <input type="hidden" name="token" value="<?php echo htmlspecialchars($token); ?>">
                             <input type="hidden" name="doc_type" value="<?php echo htmlspecialchars($docType); ?>">
-                            
+
                             <input type="file" name="document" class="file-input" accept=".pdf,.jpg,.jpeg,.png" required>
                             <button type="submit" class="upload-btn">Upload <?php echo htmlspecialchars($docName); ?></button>
                         </form>
@@ -339,7 +341,7 @@ if (!isset($_SESSION[CSRF_TOKEN_NAME])) {
                 <p>Congratulations! You have successfully uploaded all required documents.</p>
                 <p>Your application status has been updated to <strong>"Submitted (with docs)"</strong>.</p>
                 <p>We will review your application and contact you within 5-10 business days.</p>
-                
+
                 <div style="margin-top: 20px;">
                     <a href="apply_improved.php" class="btn btn-primary">Submit Another Application</a>
                 </div>
@@ -363,7 +365,7 @@ if (!isset($_SESSION[CSRF_TOKEN_NAME])) {
         setTimeout(function() {
             location.reload();
         }, 30000);
-        
+
         // Show loading state when uploading
         document.querySelectorAll('.upload-form').forEach(form => {
             form.addEventListener('submit', function() {
@@ -374,4 +376,5 @@ if (!isset($_SESSION[CSRF_TOKEN_NAME])) {
         });
     </script>
 </body>
+
 </html>

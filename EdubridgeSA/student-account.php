@@ -31,7 +31,9 @@ $message_type = '';
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Server-side CSRF enforcement (best-effort)
-    if (function_exists('require_csrf')) { require_csrf(); }
+    if (function_exists('require_csrf')) {
+        require_csrf();
+    }
 
     // CSRF protection (constant-time comparison)
     $postedToken = isset($_POST[CSRF_TOKEN_NAME]) ? (string)$_POST[CSRF_TOKEN_NAME] : '';
@@ -69,75 +71,82 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $message_type = 'error';
                 }
             } else {
-            // Validate input
-            $first_name = trim($_POST['first_name'] ?? '');
-            $last_name = trim($_POST['last_name'] ?? '');
-            $phone = trim($_POST['phone'] ?? '');
-            $date_of_birth = trim($_POST['date_of_birth'] ?? '');
-            $id_number = trim($_POST['id_number'] ?? '');
-            $school_university = trim($_POST['school_university'] ?? '');
-            $address = trim($_POST['address'] ?? '');
-            $city = trim($_POST['city'] ?? '');
-            $province = trim($_POST['province'] ?? '');
-            $postal_code = trim($_POST['postal_code'] ?? '');
+                // Validate input
+                $first_name = trim($_POST['first_name'] ?? '');
+                $last_name = trim($_POST['last_name'] ?? '');
+                $phone = trim($_POST['phone'] ?? '');
+                $date_of_birth = trim($_POST['date_of_birth'] ?? '');
+                $id_number = trim($_POST['id_number'] ?? '');
+                $school_university = trim($_POST['school_university'] ?? '');
+                $address = trim($_POST['address'] ?? '');
+                $city = trim($_POST['city'] ?? '');
+                $province = trim($_POST['province'] ?? '');
+                $postal_code = trim($_POST['postal_code'] ?? '');
 
-            $errors = [];
+                $errors = [];
 
-            if (empty($first_name)) {
-                $errors[] = 'First name is required.';
-            }
-            if (empty($last_name)) {
-                $errors[] = 'Last name is required.';
-            }
-            if (!empty($phone) && !validate_sa_phone($phone)) {
-                $errors[] = 'Please enter a valid South African phone number.';
-            }
+                if (empty($first_name)) {
+                    $errors[] = 'First name is required.';
+                }
+                if (empty($last_name)) {
+                    $errors[] = 'Last name is required.';
+                }
+                if (!empty($phone) && !validate_sa_phone($phone)) {
+                    $errors[] = 'Please enter a valid South African phone number.';
+                }
 
-            if (!empty($postal_code) && !validate_sa_postal_code($postal_code)) {
-                $errors[] = 'Postal code must be a 4-digit number.';
-            }
+                if (!empty($postal_code) && !validate_sa_postal_code($postal_code)) {
+                    $errors[] = 'Postal code must be a 4-digit number.';
+                }
 
-            if (!empty($id_number) && !validate_sa_id($id_number)) {
-                $errors[] = 'Please enter a valid South African ID number.';
-            }
+                if (!empty($id_number) && !validate_sa_id($id_number)) {
+                    $errors[] = 'Please enter a valid South African ID number.';
+                }
 
-            if (!empty($date_of_birth) && !validate_sa_date($date_of_birth)) {
-                $errors[] = 'Please enter a valid date of birth.';
-            }
+                if (!empty($date_of_birth) && !validate_sa_date($date_of_birth)) {
+                    $errors[] = 'Please enter a valid date of birth.';
+                }
 
-            if (empty($errors)) {
-                // Update user information
-                $stmt = $pdo->prepare("
+                if (empty($errors)) {
+                    // Update user information
+                    $stmt = $pdo->prepare("
                     UPDATE users 
                     SET first_name = ?, last_name = ?, phone = ?, school_university = ?,
                         address = ?, city = ?, province = ?, postal_code = ?, date_of_birth = ?, id_number = ?, updated_at = NOW()
                     WHERE student_id = ?
                 ");
-                
-                // Normalize common city typo: Zeenust -> Zeerust
-                if (strcasecmp($city, 'Zeenust') === 0) { $city = 'Zeerust'; }
 
-                $stmt->execute([
-                    $first_name, $last_name, $phone, $school_university,
-                    $address, $city, $province, $postal_code,
-                    !empty($date_of_birth) ? $date_of_birth : null,
-                    !empty($id_number) ? $id_number : null,
-                    $_SESSION['student_id']
-                ]);
+                    // Normalize common city typo: Zeenust -> Zeerust
+                    if (strcasecmp($city, 'Zeenust') === 0) {
+                        $city = 'Zeerust';
+                    }
 
-                // Update session variables
-                $_SESSION['first_name'] = $first_name;
-                $_SESSION['last_name'] = $last_name;
+                    $stmt->execute([
+                        $first_name,
+                        $last_name,
+                        $phone,
+                        $school_university,
+                        $address,
+                        $city,
+                        $province,
+                        $postal_code,
+                        !empty($date_of_birth) ? $date_of_birth : null,
+                        !empty($id_number) ? $id_number : null,
+                        $_SESSION['student_id']
+                    ]);
 
-                $message = 'Your account information has been updated successfully.';
-                $message_type = 'success';
-                // Keep CSRF token stable to prevent mismatch
-            } else {
-                $message = implode('<br>', $errors);
-                $message_type = 'error';
+                    // Update session variables
+                    $_SESSION['first_name'] = $first_name;
+                    $_SESSION['last_name'] = $last_name;
+
+                    $message = 'Your account information has been updated successfully.';
+                    $message_type = 'success';
+                    // Keep CSRF token stable to prevent mismatch
+                } else {
+                    $message = implode('<br>', $errors);
+                    $message_type = 'error';
+                }
             }
-            }
-
         } catch (PDOException $e) {
             $message = 'Database error occurred. Please try again.';
             $message_type = 'error';
@@ -194,7 +203,6 @@ try {
             exit();
         }
     }
-
 } catch (PDOException $e) {
     $message = 'Error loading account information.';
     $message_type = 'error';
@@ -204,6 +212,7 @@ try {
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -277,6 +286,7 @@ try {
             display: inline-flex;
             align-items: center;
         }
+
         .logo img {
             height: 28px;
             width: auto;
@@ -347,7 +357,7 @@ try {
             border-radius: 50%;
             overflow: hidden;
             border: 4px solid var(--primary-color);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
             position: relative;
         }
 
@@ -359,8 +369,11 @@ try {
 
         .profile-overlay {
             position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.6);
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -627,6 +640,7 @@ try {
         }
     </style>
 </head>
+
 <body>
     <!-- Navigation -->
     <nav class="navbar">
@@ -691,10 +705,12 @@ try {
                 <div class="card-body">
                     <!-- Progress indicator -->
                     <?php
-                        $allFields = ['phone','date_of_birth','id_number','school_university','address','city','province','postal_code','profile_picture'];
-                        $filled = 0;
-                        foreach ($allFields as $f) { if (!empty($user_data[$f])) $filled++; }
-                        $percent = (int)round(($filled / max(count($allFields),1)) * 100);
+                    $allFields = ['phone', 'date_of_birth', 'id_number', 'school_university', 'address', 'city', 'province', 'postal_code', 'profile_picture'];
+                    $filled = 0;
+                    foreach ($allFields as $f) {
+                        if (!empty($user_data[$f])) $filled++;
+                    }
+                    $percent = (int)round(($filled / max(count($allFields), 1)) * 100);
                     ?>
                     <div class="mb-4">
                         <label class="form-label" style="font-weight:600;">Profile Completion</label>
@@ -791,7 +807,8 @@ try {
                             </div>
                             <div class="col-md-4">
                                 <div class="form-floating">
-                                    <input type="text" id="city" name="city" class="form-control" placeholder="City" value="<?php $cityVal = $user_data['city'] ?? ''; echo htmlspecialchars(strcasecmp($cityVal, 'Zeenust') === 0 ? 'Zeerust' : $cityVal); ?>">
+                                    <input type="text" id="city" name="city" class="form-control" placeholder="City" value="<?php $cityVal = $user_data['city'] ?? '';
+                                                                                                                            echo htmlspecialchars(strcasecmp($cityVal, 'Zeenust') === 0 ? 'Zeerust' : $cityVal); ?>">
                                     <label for="city">City</label>
                                 </div>
                             </div>
@@ -839,13 +856,13 @@ try {
         accountForm && accountForm.addEventListener('submit', function(e) {
             const firstName = document.getElementById('first_name').value.trim();
             const lastName = document.getElementById('last_name').value.trim();
-            
+
             if (!firstName || !lastName) {
                 e.preventDefault();
                 alert('First name and last name are required.');
                 return false;
             }
-            
+
             // Show loading state
             const submitBtn = accountForm.querySelector('button[type="submit"]');
             submitBtn.textContent = 'Updating...';
@@ -866,14 +883,14 @@ try {
         // Postal code clamp to 4 digits
         const postalInput = document.getElementById('postal_code');
         postalInput.addEventListener('input', function(e) {
-            e.target.value = e.target.value.replace(/\D/g, '').slice(0,4);
+            e.target.value = e.target.value.replace(/\D/g, '').slice(0, 4);
         });
 
         // Simple SA ID mask: numeric max 13
         const idInput = document.getElementById('id_number');
         if (idInput) {
             idInput.addEventListener('input', function(e) {
-                e.target.value = e.target.value.replace(/\D/g, '').slice(0,13);
+                e.target.value = e.target.value.replace(/\D/g, '').slice(0, 13);
             });
         }
 
@@ -893,9 +910,14 @@ try {
 
         function previewAndSubmit(file) {
             const err = validateImage(file);
-            if (err) { alert(err); return; }
+            if (err) {
+                alert(err);
+                return;
+            }
             const reader = new FileReader();
-            reader.onload = (e) => { profileImg.src = e.target.result; };
+            reader.onload = (e) => {
+                profileImg.src = e.target.result;
+            };
             reader.readAsDataURL(file);
             // submit after short delay so preview shows quickly
             setTimeout(() => uploadForm.submit(), 300);
@@ -909,11 +931,11 @@ try {
         }
 
         if (dropZone) {
-            ['dragenter','dragover'].forEach(evt => dropZone.addEventListener(evt, (e) => {
+            ['dragenter', 'dragover'].forEach(evt => dropZone.addEventListener(evt, (e) => {
                 e.preventDefault();
                 dropZone.classList.add('dragging');
             }));
-            ['dragleave','drop'].forEach(evt => dropZone.addEventListener(evt, (e) => {
+            ['dragleave', 'drop'].forEach(evt => dropZone.addEventListener(evt, (e) => {
                 e.preventDefault();
                 dropZone.classList.remove('dragging');
             }));
@@ -949,9 +971,13 @@ try {
                     <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
                 </div>`;
             container.appendChild(toastEl);
-            const toast = new bootstrap.Toast(toastEl, { autohide: true, delay: 3000 });
+            const toast = new bootstrap.Toast(toastEl, {
+                autohide: true,
+                delay: 3000
+            });
             toast.show();
         }
     </script>
 </body>
+
 </html>

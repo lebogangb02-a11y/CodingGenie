@@ -15,7 +15,7 @@ echo "<hr>";
 
 // Step 1: Check if application exists with exact match
 echo "<h3>Step 1: Direct Database Query</h3>";
-$stmt = $pdo->prepare("SELECT * FROM applications WHERE email_address = ? AND reference_number = ?");
+$stmt = $pdo->prepare("SELECT id, email_address, reference_number, full_name, status, created_at FROM applications WHERE email_address = ? AND reference_number = ?");
 $stmt->execute([$test_email, $test_ref]);
 $application = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -56,7 +56,7 @@ echo "<hr>";
 
 // Step 4: Check for similar applications
 echo "<h3>Step 4: Similar Applications Check</h3>";
-$stmt = $pdo->prepare("SELECT email_address, reference_number, full_name FROM applications WHERE email_address LIKE ? OR reference_number LIKE ?");
+$stmt = $pdo->prepare("SELECT email_address, reference_number, full_name FROM applications WHERE email_address LIKE ? OR reference_number LIKE ? LIMIT 50");
 $stmt->execute(['%' . $test_email . '%', '%' . $test_ref . '%']);
 $similar = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -73,7 +73,7 @@ echo "<hr>";
 
 // Step 5: Check all applications for this email
 echo "<h3>Step 5: All Applications for This Email</h3>";
-$stmt = $pdo->prepare("SELECT * FROM applications WHERE email_address = ?");
+$stmt = $pdo->prepare("SELECT id, email_address, reference_number, full_name, status FROM applications WHERE email_address = ? LIMIT 200");
 $stmt->execute([$test_email]);
 $email_apps = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -102,15 +102,15 @@ try {
     if (!$validated_email) {
         throw new Exception('Email validation failed');
     }
-    
+
     // Sanitize reference
     $sanitized_ref = SecurityUtils::sanitizeInput(['ref' => $test_ref])['ref'];
-    
+
     // Query database
-    $stmt = $pdo->prepare("SELECT * FROM applications WHERE email_address = ? AND reference_number = ?");
+    $stmt = $pdo->prepare("SELECT id, email_address, reference_number, full_name, status FROM applications WHERE email_address = ? AND reference_number = ?");
     $stmt->execute([$validated_email, $sanitized_ref]);
     $result = $stmt->fetch(PDO::FETCH_ASSOC);
-    
+
     if ($result) {
         echo "<p style='color: green; font-size: 18px;'>🎉 LOGIN SHOULD WORK! Application found successfully!</p>";
         echo "<p><strong>Application ID:</strong> " . htmlspecialchars($result['id']) . "</p>";
@@ -120,7 +120,6 @@ try {
         echo "<p>Validated Email: " . htmlspecialchars($validated_email) . "</p>";
         echo "<p>Sanitized Reference: " . htmlspecialchars($sanitized_ref) . "</p>";
     }
-    
 } catch (Exception $e) {
     echo "<p style='color: red;'>❌ Login simulation error: " . htmlspecialchars($e->getMessage()) . "</p>";
 }
@@ -129,4 +128,3 @@ echo "<hr>";
 echo "<h3>Database Connection Info</h3>";
 echo "<p>Connected to database successfully</p>";
 echo "<p>PDO Driver: " . $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) . "</p>";
-?>

@@ -47,7 +47,7 @@ if (isset($pdo) && $pdo instanceof PDO) {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         )");
-        
+
         // Insert default admin if no admins exist
         $checkAdmins = $pdo->query("SELECT COUNT(*) FROM admin_users")->fetchColumn();
         if ($checkAdmins == 0) {
@@ -66,9 +66,11 @@ $msgType = 'info';
 // Handle form actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Enforce server-side CSRF when available
-    if (function_exists('require_csrf')) { require_csrf(); }
+    if (function_exists('require_csrf')) {
+        require_csrf();
+    }
     $action = $_POST['action'] ?? '';
-    
+
     if ($action === 'add_admin') {
         if (!$isSuperAdmin) {
             $message = 'Only super admins can add administrators.';
@@ -84,8 +86,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 try {
                     // Ensure role is valid
                     $validRoles = ['super_admin', 'moderator', 'staff'];
-                    if (!in_array($role, $validRoles, true)) { 
-                        $role = 'staff'; 
+                    if (!in_array($role, $validRoles, true)) {
+                        $role = 'staff';
                     }
 
                     // Uniqueness check
@@ -117,8 +119,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Get all admins
 try {
     if (isset($pdo) && $pdo instanceof PDO) {
-        $stmt = $pdo->query('SELECT * FROM admin_users ORDER BY created_at DESC');
-        $admins = $stmt->fetchAll();
+        $stmt = $pdo->query('SELECT id, username, email, role, created_at FROM admin_users ORDER BY created_at DESC LIMIT 500');
+        $admins = $stmt->fetchAll(PDO::FETCH_ASSOC);
     } else {
         $admins = [];
         $message = 'Database connection not available.';
@@ -132,6 +134,7 @@ try {
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -139,20 +142,32 @@ try {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
     <style>
-        .card-shadow { 
-            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075); 
+        .card-shadow {
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
             border-radius: 10px;
         }
-        .navbar { 
+
+        .navbar {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         }
-        .role-badge.super_admin { background-color: #dc3545; }
-        .role-badge.moderator { background-color: #fd7e14; }
-        .role-badge.staff { background-color: #6c757d; }
+
+        .role-badge.super_admin {
+            background-color: #dc3545;
+        }
+
+        .role-badge.moderator {
+            background-color: #fd7e14;
+        }
+
+        .role-badge.staff {
+            background-color: #6c757d;
+        }
+
         .sidebar {
             background: linear-gradient(180deg, #2c3e50 0%, #3498db 100%);
             min-height: 100vh;
         }
+
         .sidebar .nav-link {
             color: white;
             padding: 12px 20px;
@@ -160,15 +175,18 @@ try {
             border-radius: 8px;
             transition: all 0.3s;
         }
+
         .sidebar .nav-link:hover {
-            background: rgba(255,255,255,0.1);
+            background: rgba(255, 255, 255, 0.1);
             transform: translateX(5px);
         }
+
         .sidebar .nav-link.active {
-            background: rgba(255,255,255,0.2);
+            background: rgba(255, 255, 255, 0.2);
         }
     </style>
 </head>
+
 <body>
     <!-- Sidebar -->
     <div class="sidebar" style="width: 250px; position: fixed; left: 0; top: 0; height: 100vh;">
@@ -176,7 +194,7 @@ try {
             <h5 class="text-white mb-0">EduBridgeSA</h5>
             <small class="text-white-50">Admin Panel</small>
         </div>
-        
+
         <nav class="nav flex-column p-3">
             <a href="admin_dashboard.php" class="nav-link">
                 <i class="bi bi-speedometer2 me-3"></i>
@@ -221,10 +239,10 @@ try {
 
         <div class="container-fluid">
             <?php if ($message): ?>
-            <div class="alert alert-<?= htmlspecialchars($msgType) ?> alert-dismissible fade show">
-                <?= htmlspecialchars($message) ?>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
+                <div class="alert alert-<?= htmlspecialchars($msgType) ?> alert-dismissible fade show">
+                    <?= htmlspecialchars($message) ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
             <?php endif; ?>
 
             <div class="row">
@@ -239,32 +257,32 @@ try {
                         <div class="card-body">
                             <?php if (!$isSuperAdmin): ?>
                                 <div class="alert alert-warning">
-                                    <i class="bi bi-exclamation-triangle"></i> 
+                                    <i class="bi bi-exclamation-triangle"></i>
                                     Only Super Administrators can add new admin users.
                                 </div>
                             <?php endif; ?>
-                            
+
                             <form method="post" action="manage_admins.php">
                                 <input type="hidden" name="action" value="add_admin">
                                 <div class="mb-3">
                                     <label class="form-label">Username *</label>
-                                    <input type="text" class="form-control" name="username" required 
-                                           <?= !$isSuperAdmin ? 'disabled' : '' ?>>
+                                    <input type="text" class="form-control" name="username" required
+                                        <?= !$isSuperAdmin ? 'disabled' : '' ?>>
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label">Email *</label>
                                     <input type="email" class="form-control" name="email" required
-                                           <?= !$isSuperAdmin ? 'disabled' : '' ?>>
+                                        <?= !$isSuperAdmin ? 'disabled' : '' ?>>
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label">Password *</label>
                                     <input type="password" class="form-control" name="password" required
-                                           <?= !$isSuperAdmin ? 'disabled' : '' ?>>
+                                        <?= !$isSuperAdmin ? 'disabled' : '' ?>>
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label">Full Name *</label>
                                     <input type="text" class="form-control" name="full_name" required
-                                           <?= !$isSuperAdmin ? 'disabled' : '' ?>>
+                                        <?= !$isSuperAdmin ? 'disabled' : '' ?>>
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label">Role</label>
@@ -276,7 +294,7 @@ try {
                                         <?php endif; ?>
                                     </select>
                                 </div>
-                                <button type="submit" class="btn btn-primary w-100" <?= $isSuperAdmin ? '' : 'disabled' ?> >
+                                <button type="submit" class="btn btn-primary w-100" <?= $isSuperAdmin ? '' : 'disabled' ?>>
                                     <i class="bi bi-plus-circle me-1"></i>Add Admin
                                 </button>
                             </form>
@@ -353,11 +371,11 @@ try {
                                         </tbody>
                                     </table>
                                 </div>
-                                
+
                                 <div class="mt-3 p-3 bg-light rounded">
                                     <h6><i class="bi bi-info-circle me-2"></i>Information</h6>
                                     <p class="mb-1 small">
-                                        <strong>Current User:</strong> <?php echo htmlspecialchars($username); ?> 
+                                        <strong>Current User:</strong> <?php echo htmlspecialchars($username); ?>
                                         (<?php echo htmlspecialchars($currentRole); ?>)
                                     </p>
                                     <p class="mb-0 small text-muted">
@@ -374,4 +392,5 @@ try {
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
+
 </html>

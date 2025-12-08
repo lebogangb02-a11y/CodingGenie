@@ -27,19 +27,19 @@ try {
     $application_id = null;
 
     if (!empty($student_id)) {
-        $stmt = $pdo->prepare("SELECT * FROM applications WHERE student_id = ? ORDER BY updated_at DESC, id DESC LIMIT 1");
+        $stmt = $pdo->prepare("SELECT id, reference_number, email_address, application_status, step_completed, created_at, updated_at FROM applications WHERE student_id = ? ORDER BY updated_at DESC, id DESC LIMIT 1");
         $stmt->execute([$student_id]);
         $application = $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
     if (!$application && !empty($student_email)) {
-        $stmt = $pdo->prepare("SELECT * FROM applications WHERE email_address = ? ORDER BY updated_at DESC, id DESC LIMIT 1");
+        $stmt = $pdo->prepare("SELECT id, reference_number, email_address, application_status, step_completed, created_at, updated_at FROM applications WHERE email_address = ? ORDER BY updated_at DESC, id DESC LIMIT 1");
         $stmt->execute([$student_email]);
         $application = $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
     if (!$application && isset($_SESSION['reference_number'])) {
-        $stmt = $pdo->prepare("SELECT * FROM applications WHERE reference_number = ? ORDER BY updated_at DESC, id DESC LIMIT 1");
+        $stmt = $pdo->prepare("SELECT id, reference_number, email_address, application_status, step_completed, created_at, updated_at FROM applications WHERE reference_number = ? ORDER BY updated_at DESC, id DESC LIMIT 1");
         $stmt->execute([$_SESSION['reference_number']]);
         $application = $stmt->fetch(PDO::FETCH_ASSOC);
     }
@@ -49,9 +49,12 @@ try {
     // Helper: determine if personal info is present
     $has_personal_info = false;
     if ($application) {
-        $fields = ['full_name','surname','first_name','last_name','id_number','date_of_birth','phone_number'];
+        $fields = ['full_name', 'surname', 'first_name', 'last_name', 'id_number', 'date_of_birth', 'phone_number'];
         foreach ($fields as $f) {
-            if (!empty($application[$f])) { $has_personal_info = true; break; }
+            if (!empty($application[$f])) {
+                $has_personal_info = true;
+                break;
+            }
         }
     }
 
@@ -65,7 +68,8 @@ try {
             $stmtA = $pdo->prepare("SELECT document_type FROM application_documents WHERE application_id = ?");
             $stmtA->execute([$application_id]);
             $docsA = $stmtA->fetchAll(PDO::FETCH_COLUMN);
-        } catch (Exception $e) { /* table may not exist */ }
+        } catch (Exception $e) { /* table may not exist */
+        }
 
         // Variant B: documents table with doc_type
         $docsB = [];
@@ -73,7 +77,8 @@ try {
             $stmtB = $pdo->prepare("SELECT doc_type FROM documents WHERE application_id = ?");
             $stmtB->execute([$application_id]);
             $docsB = $stmtB->fetchAll(PDO::FETCH_COLUMN);
-        } catch (Exception $e) { /* table may not exist */ }
+        } catch (Exception $e) { /* table may not exist */
+        }
 
         $doc_types = array_map('strtolower', array_merge($docsA, $docsB));
         $has_academic_history = in_array('academic_results', $doc_types) || in_array('academic_transcript', $doc_types) || in_array('matric_certificate', $doc_types);
@@ -88,17 +93,20 @@ try {
         $required_docs_a = ['certified_id', 'academic_results'];
 
         // Detect which schema has data; prefer the populated one
-        $hasA = false; $hasB = false;
+        $hasA = false;
+        $hasB = false;
         try {
             $countA = $pdo->prepare("SELECT COUNT(*) FROM application_documents WHERE application_id = ?");
             $countA->execute([$application_id]);
             $hasA = (int)$countA->fetchColumn() > 0;
-        } catch (Exception $e) { /* ignore */ }
+        } catch (Exception $e) { /* ignore */
+        }
         try {
             $countB = $pdo->prepare("SELECT COUNT(*) FROM documents WHERE application_id = ?");
             $countB->execute([$application_id]);
             $hasB = (int)$countB->fetchColumn() > 0;
-        } catch (Exception $e) { /* ignore */ }
+        } catch (Exception $e) { /* ignore */
+        }
 
         $required_docs = $hasB ? $required_docs_b : $required_docs_a;
     }
@@ -110,13 +118,19 @@ try {
         try {
             $stmtA = $pdo->prepare("SELECT document_type FROM application_documents WHERE application_id = ?");
             $stmtA->execute([$application_id]);
-            foreach ($stmtA->fetchAll(PDO::FETCH_COLUMN) as $dt) { $uploaded_doc_types[] = strtolower($dt); }
-        } catch (Exception $e) { /* ignore */ }
+            foreach ($stmtA->fetchAll(PDO::FETCH_COLUMN) as $dt) {
+                $uploaded_doc_types[] = strtolower($dt);
+            }
+        } catch (Exception $e) { /* ignore */
+        }
         try {
             $stmtB = $pdo->prepare("SELECT doc_type FROM documents WHERE application_id = ?");
             $stmtB->execute([$application_id]);
-            foreach ($stmtB->fetchAll(PDO::FETCH_COLUMN) as $dt) { $uploaded_doc_types[] = strtolower($dt); }
-        } catch (Exception $e) { /* ignore */ }
+            foreach ($stmtB->fetchAll(PDO::FETCH_COLUMN) as $dt) {
+                $uploaded_doc_types[] = strtolower($dt);
+            }
+        } catch (Exception $e) { /* ignore */
+        }
     }
 
     // Step completion based on requirements in the spec
@@ -148,12 +162,13 @@ try {
     $review_done = false;
     $status_raw = strtolower($application['status'] ?? ($application['application_status'] ?? ''));
     if ($status_raw) {
-        $review_done = in_array($status_raw, ['submitted','under_review','in_review','accepted','complete','completed','submitted (with docs)']);
+        $review_done = in_array($status_raw, ['submitted', 'under_review', 'in_review', 'accepted', 'complete', 'completed', 'submitted (with docs)']);
     }
     if ($review_done) $progress += 15;
 
     // Clamp 0-100
-    if ($progress < 0) $progress = 0; if ($progress > 100) $progress = 100;
+    if ($progress < 0) $progress = 0;
+    if ($progress > 100) $progress = 100;
 
     // Status mapping
     $status_label = 'Draft';
@@ -190,7 +205,8 @@ try {
             $stmt->execute($appIds);
             $notifications_unread = (int)$stmt->fetchColumn();
         }
-    } catch (Exception $e) { /* fallback silently */ }
+    } catch (Exception $e) { /* fallback silently */
+    }
 
     // Applications count
     $applications_count = 0;
@@ -204,7 +220,8 @@ try {
             $stmt->execute([$student_email]);
             $applications_count = (int)$stmt->fetchColumn();
         }
-    } catch (Exception $e) { /* ignore */ }
+    } catch (Exception $e) { /* ignore */
+    }
 
     // Documents required count (remaining required docs for active application)
     $documents_required_remaining = 0;
@@ -235,4 +252,3 @@ try {
     error_log('get-dashboard-metrics error: ' . $e->getMessage());
     echo json_encode(['success' => false, 'error' => 'Database error occurred']);
 }
-?>

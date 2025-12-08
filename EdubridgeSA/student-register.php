@@ -28,7 +28,9 @@ $formData = [
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
     // Server-side CSRF enforcement (best-effort)
-    if (function_exists('require_csrf')) { require_csrf(); }
+    if (function_exists('require_csrf')) {
+        require_csrf();
+    }
 
     // CSRF Check
     if (!isset($_POST[CSRF_TOKEN_NAME]) || $_POST[CSRF_TOKEN_NAME] !== $_SESSION[CSRF_TOKEN_NAME]) {
@@ -42,30 +44,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
         $formData['school_university'] = trim($_POST['school_university'] ?? '');
         $password = $_POST['password'] ?? '';
         $confirmPassword = $_POST['confirm_password'] ?? '';
-        
+
         // Validation
         if (empty($formData['first_name'])) {
             $errors[] = 'First name is required.';
         }
-        
+
         if (empty($formData['last_name'])) {
             $errors[] = 'Last name is required.';
         }
-        
+
         if (empty($formData['email']) || !filter_var($formData['email'], FILTER_VALIDATE_EMAIL)) {
             $errors[] = 'Valid email address is required.';
         }
-        
+
         if (empty($formData['phone'])) {
             $errors[] = 'Phone number is required.';
         } elseif (!preg_match('/^[0-9+\-\s()]{10,15}$/', $formData['phone'])) {
             $errors[] = 'Please enter a valid phone number.';
         }
-        
+
         if (empty($formData['school_university'])) {
             $errors[] = 'School/University is required.';
         }
-        
+
         if (empty($password)) {
             $errors[] = 'Password is required.';
         } elseif (strlen($password) < 8) {
@@ -73,26 +75,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
         } elseif (!preg_match('/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/', $password)) {
             $errors[] = 'Password must contain at least one uppercase letter, one lowercase letter, and one number.';
         }
-        
+
         if ($password !== $confirmPassword) {
             $errors[] = 'Passwords do not match.';
         }
-        
+
         // If no validation errors, proceed with registration
         if (empty($errors)) {
             try {
                 $pdo = getPDO();  // Use centralized DB connection from auth.php
-                
+
                 // Check if email already exists
                 $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?");
                 $stmt->execute([$formData['email']]);
-                
+
                 if ($stmt->fetch()) {
                     $errors[] = 'An account with this email already exists. Please use a different email or <a href="student-login.php" style="color: #1a5fb4;">login here</a>.';
                 } else {
                     // Hash the password
                     $passwordHash = password_hash($password, PASSWORD_DEFAULT);
-                    
+
                     // Generate unique student ID (retry if duplicate)
                     $studentId = 'EBS' . date('Y') . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
                     $stmt = $pdo->prepare("SELECT id FROM users WHERE student_id = ?");
@@ -100,10 +102,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
                     if ($stmt->fetch()) {
                         $studentId = 'EBS' . date('Y') . str_pad(rand(10000, 99999), 5, '0', STR_PAD_LEFT);  // Longer if collision
                     }
-                    
+
                     // Generate email verification token
                     $verificationToken = bin2hex(random_bytes(32));
-                    
+
                     // Insert new user with verification metadata
                     $stmt = $pdo->prepare("
                         INSERT INTO users (
@@ -112,7 +114,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
                             verification_token, verification_sent_at, verification_attempts, created_at
                         ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', 0, ?, NOW(), 1, NOW())
                     ");
-                    
+
                     $stmt->execute([
                         $formData['email'],
                         $passwordHash,
@@ -123,12 +125,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
                         $studentId,
                         $verificationToken
                     ]);
-                    
+
                     // Send verification email (use centralized file)
                     require_once 'email_functions.php';
                     $fullName = trim($formData['first_name'] . ' ' . $formData['last_name']);
                     $emailSent = sendVerificationEmail($formData['email'], $fullName, $verificationToken);
-                    
+
                     if ($emailSent) {
                         error_log("Registration: Verification email sent successfully to " . $formData['email']);
                         $_SESSION['flash_message'] = '<div class="alert alert-success">Registration successful! Check your email for verification.</div>';
@@ -136,13 +138,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
                         error_log("Registration: Verification email failed for " . $formData['email'] . " - Falling back to manual resend.");
                         $_SESSION['flash_message'] = '<div class="alert alert-warning">Account created, but verification email failed. You can resend from the next page.</div>';
                     }
-                    
+
                     // Always redirect to pending page for resend/verification status
                     $_SESSION['pending_email'] = $formData['email'];
                     header('Location: email-verification-pending.php');
                     exit();
                 }
-                
             } catch (Exception $e) {  // Broader catch for PDO/ general errors
                 $errors[] = 'Database error: Unable to create account. Please try again.';
                 if (defined('DEBUG_MODE') && DEBUG_MODE) {
@@ -151,7 +152,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
                 }
             }
         }
-        
+
         // Regenerate CSRF token after submission
         $_SESSION[CSRF_TOKEN_NAME] = bin2hex(random_bytes(32));
     }
@@ -159,6 +160,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -185,7 +187,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
             --gray-700: #374151;
             --gray-800: #1f2937;
             --gray-900: #111827;
-            
+
             /* Typography */
             --font-family: 'Poppins', sans-serif;
             --font-weight-light: 300;
@@ -193,21 +195,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
             --font-weight-medium: 500;
             --font-weight-semibold: 600;
             --font-weight-bold: 700;
-            
+
             /* Shadows */
             --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
             --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
             --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
             --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
             --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-            
+
             /* Border Radius */
             --radius-sm: 0.375rem;
             --radius-md: 0.5rem;
             --radius-lg: 0.75rem;
             --radius-xl: 1rem;
             --radius-2xl: 1.5rem;
-            
+
             /* Transitions */
             --transition-fast: 0.15s ease-in-out;
             --transition-normal: 0.3s ease-in-out;
@@ -243,9 +245,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
         }
 
         @keyframes gradientShift {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
+            0% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+
+            100% {
+                background-position: 0% 50%;
+            }
         }
 
         /* Main Container */
@@ -277,6 +287,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
                 opacity: 0;
                 transform: translateY(50px);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
